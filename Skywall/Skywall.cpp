@@ -35,9 +35,9 @@ uint64_t moveChecker(int depth) {
 		printf("HERE");
 	}*/
 
-	bool focusBoard1 = testBoard.occupiedBoard[1] == 7962936007834513297 && testBoard.occupiedBoard[2] == 10483808061445853294;
+	//bool focusBoard1 = testBoard.occupiedBoard[1] == 7962936007834513297 && testBoard.occupiedBoard[2] == 10483808061445853294;
 
-	for (int i = 0; i < allMoves.size(); i++) {
+	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
 		
 		/*if (depth == 3 && move.getStartSquare() == 50 && move.getEndSquare() == 34) {
@@ -59,11 +59,11 @@ uint64_t moveChecker(int depth) {
 
 		testBoard.undoMove(move);
 
-		if (testBoard.occupiedBoard[1] != origBoard1 || testBoard.occupiedBoard[2] != origBoard2) {
+		/*if (testBoard.occupiedBoard[1] != origBoard1 || testBoard.occupiedBoard[2] != origBoard2) {
 			printf("ERROR, ERROR. Make unmake not resetting to same board position. Iteration %d within the generated moves.\n", i);
 			move.printMove();
 			printf("\n %llu, %llu.\n", origBoard1, origBoard2);
-		}
+		}*/
 
 		if (DEBUG == 1 && depth == testDepth) {
 			move.printMove();
@@ -145,10 +145,10 @@ void completePerftTest() {
 		testBoard.loadBoardFromFen(FENs[line]);
 
 		//testBoard.precomputeDistances();
-
-		for (pair<int, uint64_t> tmp : perftTestResults[line]) {
-			int depth = tmp.first;
-			uint64_t moveCount = tmp.second;
+		int pairCount = perftTestResults[line].size();
+		for(int z = 0; z < pairCount; z++) {
+			int depth = perftTestResults[line][z].first;
+			uint64_t moveCount = perftTestResults[line][z].second;
 
 			if (depth > 5) {
 				continue;
@@ -179,7 +179,7 @@ int main()
 {
 	importPerftTest();
 	auto start = chrono::high_resolution_clock::now();
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 1; i++) {
 		completePerftTest();
 	}
 
