@@ -26,7 +26,6 @@ public:
 	int kingLocations[3];
 	uint64_t attackingSquares[3];
 
-
 	stack<BoardStateInformation> boardStates;
 
 	// no piece  = 0, king = 1, pawn = 2, knight = 3, bishop = 4, rook = 5, queen = 6, white = 8, black = 16
@@ -47,7 +46,7 @@ public:
 	}
 
 	void makeMove(Move move) {
-		boardStates.push(boardStates.top());
+		BoardStateInformation newInfo = boardStates.top();
 
 		int startSquare = move.getStartSquare();
 		int targetSquare = move.getEndSquare();
@@ -59,14 +58,14 @@ public:
 
 		bool capturedPiece = rawBoard[pieceRemovalSquare] != 0;
 
-		boardStates.top().fiftyMoveCount++;
+		newInfo.fiftyMoveCount++;
 		if (capturedPiece || (rawBoard[startSquare] & 7) == 2) {	
-			boardStates.top().fiftyMoveCount = 0;
+			newInfo.fiftyMoveCount = 0;
 		}
 
 		// Actual chess move
 		int movingPiece = rawBoard[startSquare];
-		boardStates.top().capturedPieceType = rawBoard[pieceRemovalSquare];
+		newInfo.capturedPieceType = rawBoard[pieceRemovalSquare];
 
 		rawBoard[startSquare] = 0;
 		rawBoard[pieceRemovalSquare] = 0;
@@ -76,11 +75,11 @@ public:
 		occupiedBoard[movingPiece / 8] |= (1ull << targetSquare);
 		occupiedBoard[(movingPiece / 8 % 2) + 1] &= ~(1ull << pieceRemovalSquare);
 
-		boardStates.top().enPassantSquare = 64;
+		newInfo.enPassantSquare = 64;
 
 		// double pawn push
 		if (flags == 7) {
-			boardStates.top().enPassantSquare = pieceRemovalSquare;
+			newInfo.enPassantSquare = pieceRemovalSquare;
 		}
 
 		// Handle Castling
@@ -101,8 +100,8 @@ public:
 			}
 
 			// Remove castling rights for that side
-			boardStates.top().castlingRights[2 * currentPlayer - 2] = false;
-			boardStates.top().castlingRights[2 * currentPlayer - 1] = false;
+			newInfo.castlingRights[2 * currentPlayer - 2] = false;
+			newInfo.castlingRights[2 * currentPlayer - 1] = false;
 		}
 
 		// Handle promotion
@@ -120,24 +119,25 @@ public:
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
-			boardStates.top().castlingRights[2 * currentPlayer - 2] = false;
-			boardStates.top().castlingRights[2 * currentPlayer - 1] = false;
+			newInfo.castlingRights[2 * currentPlayer - 2] = false;
+			newInfo.castlingRights[2 * currentPlayer - 1] = false;
 
 			kingLocations[currentPlayer] = targetSquare;
 		}
 
 		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
-				boardStates.top().castlingRights[2 * currentPlayer - 2] = false;
+				newInfo.castlingRights[2 * currentPlayer - 2] = false;
 			}
 			else {
-				boardStates.top().castlingRights[2 * currentPlayer - 1] = false;
+				newInfo.castlingRights[2 * currentPlayer - 1] = false;
 			}
 		}
 
 		plyCount++;
 
 		//generateAttacks(currentPlayer);
+		boardStates.push(newInfo);
 		currentPlayer = currentPlayer % 2 + 1;
 	}
 
@@ -146,6 +146,9 @@ public:
 		int targetSquare = move.getEndSquare();
 		int pieceRemovalSquare = targetSquare;
 		int flags = move.getFlag();
+
+		BoardStateInformation formerStatus = boardStates.top();
+		boardStates.pop();
 
 		if (flags == 1) {
 			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? 8 : -8);
@@ -160,12 +163,12 @@ public:
 
 		rawBoard[startSquare] = movingPiece;
 		rawBoard[targetSquare] = 0;
-		rawBoard[pieceRemovalSquare] = boardStates.top().capturedPieceType;
+		rawBoard[pieceRemovalSquare] = formerStatus.capturedPieceType;
 
 		occupiedBoard[movingPiece / 8] &= ~(1ull << targetSquare);
 		occupiedBoard[movingPiece / 8] |= (1ull << startSquare);
 		
-		if (boardStates.top().capturedPieceType) {
+		if (formerStatus.capturedPieceType) {
 			occupiedBoard[(movingPiece / 8 % 2) + 1] |= (1ull << pieceRemovalSquare);
 		}
 
@@ -193,7 +196,6 @@ public:
 			kingLocations[(currentPlayer % 2) + 1] = startSquare;
 		}
 
-		boardStates.pop();
 		plyCount--;
 
 		currentPlayer = currentPlayer % 2 + 1;
@@ -205,10 +207,11 @@ public:
 		int otherPlayer = player % 2 + 1;
 
 		// perform several partial move gens beginning from other player's king location
-		vector<Move> knightMoves;
-		generateKnightMoves(kingLocations[player], knightMoves, player);
+		int numMoves = generateKnightMoves(kingLocations[player], examinedMovesDuringCheck, 0, player);
 		
-		for (Move m : knightMoves) {
+		//for (Move m : knightMoves) {
+		for(int i = 0; i < numMoves; i++) {
+			Move m = examinedMovesDuringCheck[i];
 			/*m.printMove();
 			printf("\n");*/
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 3)) {
@@ -216,19 +219,21 @@ public:
 			}
 		}
 
-		vector<Move> diagonalMoves;
-		generateSlidingMoves(kingLocations[player], 4, diagonalMoves, player);
+		numMoves = generateSlidingMoves(kingLocations[player], 4, examinedMovesDuringCheck, 0,player);
 
-		for (Move m : diagonalMoves) {
+		//for (Move m : diagonalMoves) {
+		for (int i = 0; i < numMoves; i++) {
+			Move m = examinedMovesDuringCheck[i];
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 4) || rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 6)) {
 				return true;
 			}
 		}
 
-		vector<Move> straightMoves;
-		generateSlidingMoves(kingLocations[player], 5, straightMoves, player);
+		numMoves = generateSlidingMoves(kingLocations[player], 5, examinedMovesDuringCheck, 0, player);
 
-		for (Move m : straightMoves) {
+		//for (Move m : straightMoves) {
+		for (int i = 0; i < numMoves; i++) {
+			Move m = examinedMovesDuringCheck[i];
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 5) || rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 6)) {
 				return true;
 			}
@@ -457,11 +462,12 @@ public:
 
 		boardStates.push(tmp);
 
-		vector<Move> allMoves = generateAttacks(1);
-		allMoves = generateAttacks(2);
+		generateAttacks(1);
+		generateAttacks(2);
 	}
 
 	Board() {
+		examinedMovesDuringCheck.resize(15);
 		for (int i = 0; i < 8; i++) {	// Row
 			for (int j = 0; j < 8; j++) {	// Col
 				setPiece(i, j, 0);
@@ -480,11 +486,14 @@ public:
 	vector<Move> generateLegalMovesV2() {	// Using faster check detection
 		uint64_t origBoard1 = occupiedBoard[1];
 		uint64_t origBoard2 = occupiedBoard[2];
-		vector<Move> allMoves = generatePseudoLegalMoves(currentPlayer);
+
+		vector<Move> allMoves(219);
+
+		int moveCount = generatePseudoLegalMovesV2(allMoves, currentPlayer);
 		vector<Move> validMoves;
 		int origCurrentPlayer = currentPlayer;
 
-		for (uint8_t i = 0; i < allMoves.size(); i++) {
+		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
 			bool moveStatus = true;
 			
@@ -517,6 +526,9 @@ private:
 	int directions[8] = { 8, -8, -1, 1, -7, 7, -9, 9 };
 	int distanceFromEdge[64][8];
 	int validKnightMoves[64][8];
+
+	vector<Move> examinedMovesDuringCheck;
+
 
 	uint64_t validPawnMoveMasks[64][3];
 
@@ -608,7 +620,7 @@ private:
 
 	}
 
-	int generateKingMoves(int square, vector<Move>& moves, int wantedPlayer) {
+	int generateKingMoves(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
 
 		int otherPlayer = wantedPlayer % 2 + 1;
@@ -622,17 +634,20 @@ private:
 						continue;
 					}
 				}
-				
 
 				if (targetPiece != 0) {
 					if ((targetPiece >> 3) == wantedPlayer) {
 						continue;
 					}
-					moves.push_back(Move(square, targetSquare, 0));
+					moves[insertionIndex] = Move(square, targetSquare, 0);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 				else {
-					moves.push_back(Move(square, targetSquare, 0));
+					moves[insertionIndex] = Move(square, targetSquare, 0);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -650,7 +665,9 @@ private:
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[wantedPlayer % 2 + 1];
 				if (area == 0ull) {
 					if (rawBoard[(56 * wantedPlayer - 56) + 7] == (8 * wantedPlayer | 5)) {// Check the rook still exists
-						moves.push_back(Move(square, square + 2, 6));
+						moves[insertionIndex] = Move(square, square + 2, 6);
+						insertionIndex++;
+						//moves.push_back(Move(square, square + 2, 6));
 						movesGenerated++;
 					}
 				}
@@ -668,7 +685,9 @@ private:
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[wantedPlayer % 2 + 1];
 				if (area == 0ull) {
 					if (rawBoard[(56 * wantedPlayer - 56)] == (8 * wantedPlayer | 5)) {	// Check the rook still exists
-						moves.push_back(Move(square, square - 2, 6));
+						moves[insertionIndex] = Move(square, square - 2, 6);
+						insertionIndex++;
+						//moves.push_back(Move(square, square - 2, 6));
 						movesGenerated++;
 					}
 				}
@@ -697,7 +716,7 @@ private:
 		return validCapturePawnMoves;
 	}
 
-	int generatePawnMovesV2(int square, vector<Move>& moves, int wantedPlayer) {
+	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
 		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
 		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
@@ -718,13 +737,21 @@ private:
 		if (validForwardPawnMoves != 0) {
 			if (square / 8 == 1 && wantedPlayer == 1) {
 				int targetSquare = square + 16;
-				if ((rawBoard[targetSquare] & 7) == 0)
-					moves.push_back(Move(square, targetSquare, 7));
+				if ((rawBoard[targetSquare] & 7) == 0) {
+					moves[insertionIndex] = Move(square, targetSquare, 7);
+					insertionIndex++;
+					movesGenerated++;
+					//moves.push_back(Move(square, targetSquare, 7));
+				}
 			}
 			else if (square / 8 == 6 && wantedPlayer == 2) {
 				int targetSquare = square - 16;
-				if ((rawBoard[targetSquare] & 7) == 0)
-					moves.push_back(Move(square, targetSquare, 7));
+				if ((rawBoard[targetSquare] & 7) == 0) {
+					moves[insertionIndex] = Move(square, targetSquare, 7);
+					insertionIndex++;
+					movesGenerated++;
+					//moves.push_back(Move(square, targetSquare, 7));
+				}
 			}
 		}
 
@@ -735,17 +762,23 @@ private:
 
 			if (targetSquare / 8 == 0 || targetSquare / 8 == 7) {
 				for (int flag = 2; flag <= 5; flag++) {
-					moves.push_back(Move(square, targetSquare, flag));
+					moves[insertionIndex] = Move(square, targetSquare, flag);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, flag));
 					movesGenerated++;
 				}
 			}
 			else {
 				if (targetSquare == boardStates.top().enPassantSquare) {
-					moves.push_back(Move(square, targetSquare, 1));
+					moves[insertionIndex] = Move(square, targetSquare, 1);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 1));
 					movesGenerated++;
 				}
 				else {
-					moves.push_back(Move(square, targetSquare, 0));
+					moves[insertionIndex] = Move(square, targetSquare, 0);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -753,7 +786,7 @@ private:
 		return movesGenerated;
 	}
 
-	int generateSlidingMoves(int square, int pieceType, vector<Move>& moves, int safePlayer) {
+	int generateSlidingMoves(int square, int pieceType, vector<Move>& moves, int insertionIndex, int safePlayer) {
 		int movesGenerated = 0;
 		int startMoveTypes = 0;
 		int endMoveTypes = 8;
@@ -775,12 +808,16 @@ private:
 					if ((targetPiece / 8) == safePlayer) {
 						break;
 					}
-					moves.push_back(Move(square, targetSquare, 0));
+					moves[insertionIndex] = Move(square, targetSquare, 0);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 					break;
 				}
 				else {
-					moves.push_back(Move(square, targetSquare, 0));
+					moves[insertionIndex] = Move(square, targetSquare, 0);
+					insertionIndex++;
+					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -789,7 +826,7 @@ private:
 		return movesGenerated;
 	}
 
-	int generateKnightMoves(int square, vector<Move>& moves, int safePlayer) {
+	int generateKnightMoves(int square, vector<Move>& moves, int insertionIndex, int safePlayer) {
 		int movesGenerated = 0;
 		for (int i = 0; i < 8; i++) {
 			int targetSquare = validKnightMoves[square][i];
@@ -798,16 +835,17 @@ private:
 
 			if (rawBoard[targetSquare] / 8 == safePlayer)
 				continue;
-
-			moves.push_back(Move(square, targetSquare, 0));
+			moves[insertionIndex] = Move(square, targetSquare, 0);
+			insertionIndex++;
+			//moves.push_back(Move(square, targetSquare, 0));
 			movesGenerated++;
 		}
 
 		return movesGenerated;
 	}
 
-	vector<Move> generatePseudoLegalMovesV2(int wantedPlayer) {
-		vector<Move> listOfMoves;
+	int generatePseudoLegalMovesV2(vector<Move>& listOfMoves, int wantedPlayer) {
+		int insertionIndex = 0;
 
 		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
 		while (relevantOccupiedBoard != 0) {
@@ -816,32 +854,32 @@ private:
 			switch (pieceTypeAtBoard)
 			{
 			case 1: //King
-				generateKingMoves(square, listOfMoves, wantedPlayer);
+				insertionIndex += generateKingMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 2:	// Pawn
-				generatePawnMovesV2(square, listOfMoves, wantedPlayer);
+				insertionIndex += generatePawnMovesV2(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 3: // Knight
-				generateKnightMoves(square, listOfMoves, wantedPlayer);
+				insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 4: // Bishop
-				generateSlidingMoves(square, 4, listOfMoves, wantedPlayer);
+				insertionIndex += generateSlidingMoves(square, 4, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 5: // Rook
-				generateSlidingMoves(square, 5, listOfMoves, wantedPlayer);
+				insertionIndex += generateSlidingMoves(square, 5, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 6: // Queen
-				generateSlidingMoves(square, 6, listOfMoves, wantedPlayer);
+				insertionIndex += generateSlidingMoves(square, 6, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			default:
 				printf("ERROR. Invalid piece type for move generation. \n.");
 				break;
 			}
 		}
-		return listOfMoves;
+		return insertionIndex;
 	}
 
-	vector<Move> generatePseudoLegalMoves(int wantedPlayer) {
+	/*vector<Move> generatePseudoLegalMoves(int wantedPlayer) {
 		vector<Move> listOfMoves;
 
 		for (int square = 0; square < 64; square++) {
@@ -878,9 +916,13 @@ private:
 		}
 		return listOfMoves;
 	}
+	*/
 
-	vector<Move> generateAttacks(int wantedPlayer) {
-		vector<Move> listOfMoves;
+	void generateAttacks(int wantedPlayer) {
+		int insertionIndex = 0;
+
+
+		vector<Move> listOfMoves(219);
 		attackingSquares[wantedPlayer] = 0ull;
 
 		for (int square = 0; square < 64; square++) {
@@ -910,16 +952,16 @@ private:
 				}
 					break;
 				case 3: // Knight
-					generateKnightMoves(square, listOfMoves, wantedPlayer);
+					insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 4: // Bishop
-					generateSlidingMoves(square, 4, listOfMoves, wantedPlayer);
+					insertionIndex += generateSlidingMoves(square, 4, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 5: // Rook
-					generateSlidingMoves(square, 5, listOfMoves, wantedPlayer);
+					insertionIndex += generateSlidingMoves(square, 5, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 6: // Queen
-					generateSlidingMoves(square, 6, listOfMoves, wantedPlayer);
+					insertionIndex += generateSlidingMoves(square, 6, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 1:
 					break;
@@ -930,11 +972,13 @@ private:
 			}
 		}
 
-		for (Move m : listOfMoves) {
+		for(int i = 0; i < insertionIndex; i++) {
+			Move m = listOfMoves[i];
+		//
 			attackingSquares[wantedPlayer] |= (1ull << m.getEndSquare());
 		}
 
-		return listOfMoves;
+		return;
 	}
 
 };

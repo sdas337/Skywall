@@ -139,7 +139,7 @@ void completePerftTest() {
 	int testCount = 0;
 	int passedTestCount = 0;
 
-	int lastTest = 1;
+	int lastTest = 128;
 	//lastTest = 2;
 	for (int line = 0; line < lastTest; line++) {
 		testBoard.loadBoardFromFen(FENs[line]);
@@ -150,7 +150,7 @@ void completePerftTest() {
 			int depth = perftTestResults[line][z].first;
 			uint64_t moveCount = perftTestResults[line][z].second;
 
-			if (depth > 5) {
+			if (depth > 6) {
 				continue;
 			}
 
