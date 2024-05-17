@@ -1,6 +1,7 @@
 using namespace std;
 
 #include "move.cpp"
+#include "magics.cpp"
 
 #include <inttypes.h>
 #include <vector>
@@ -109,13 +110,6 @@ public:
 			rawBoard[targetSquare] = (currentPlayer * 8) | (flags + 1);
 		}
 		// En passant capture
-		/*else if (flags == 1) {
-			int capturedSquare = targetSquare + (currentPlayer == 1 ? -8 : 8);
-			boardStates.top().capturedPieceType = rawBoard[capturedSquare];
-			rawBoard[capturedSquare] = 0;
-
-			occupiedBoard[(movingPiece / 8 % 2) + 1] &= ~(1ull << capturedSquare);
-		}*/
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
@@ -153,11 +147,6 @@ public:
 		if (flags == 1) {
 			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? 8 : -8);
 		}
-
-
-		/*if (startSquare == 16 && targetSquare == 33) {
-			printf("Undoing relevant move\n");
-		}*/
 
 		int movingPiece = rawBoard[targetSquare];
 
@@ -209,19 +198,15 @@ public:
 		// perform several partial move gens beginning from other player's king location
 		int numMoves = generateKnightMoves(kingLocations[player], examinedMovesDuringCheck, 0, player);
 		
-		//for (Move m : knightMoves) {
 		for(int i = 0; i < numMoves; i++) {
 			Move m = examinedMovesDuringCheck[i];
-			/*m.printMove();
-			printf("\n");*/
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 3)) {
 				return true;
 			}
 		}
 
-		numMoves = generateSlidingMoves(kingLocations[player], 4, examinedMovesDuringCheck, 0,player);
+		numMoves = generateBishopMoves(kingLocations[player], examinedMovesDuringCheck, 0, player);
 
-		//for (Move m : diagonalMoves) {
 		for (int i = 0; i < numMoves; i++) {
 			Move m = examinedMovesDuringCheck[i];
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 4) || rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 6)) {
@@ -229,9 +214,8 @@ public:
 			}
 		}
 
-		numMoves = generateSlidingMoves(kingLocations[player], 5, examinedMovesDuringCheck, 0, player);
+		numMoves = generateRookMoves(kingLocations[player], examinedMovesDuringCheck, 0, player);
 
-		//for (Move m : straightMoves) {
 		for (int i = 0; i < numMoves; i++) {
 			Move m = examinedMovesDuringCheck[i];
 			if (rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 5) || rawBoard[m.getEndSquare()] == (otherPlayer * 8 | 6)) {
@@ -261,16 +245,6 @@ public:
 
 		return false;
 	}
-
-	/*bool sideInCheckV2(int player) {
-		int otherPlayer = player % 2 + 1;
-		uint64_t relevantAttacks = attackingSquares[otherPlayer];
-		uint64_t kingBeingAttacked = (relevantAttacks & (1ull << kingLocations[player]));
-		if (kingBeingAttacked == 0ull)
-			return false;
-
-		return true;
-	}*/
 
 	char prettyPiecePrint(int row, int col) {
 		int pieceAtLoc = rawBoard[8 * row + col] & 7;
@@ -475,9 +449,9 @@ public:
 		}
 
 		precomputeDistances();
+		generateMagics();
 		
 		string startingBoardPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-		//string startingBoardPos = "4R3/2r3p1/5bk1/1p1r3p/p2PR1P1/P1BK1P2/1P6/8 b - - 0 1";
 		loadBoardFromFen(startingBoardPos);
 
 		printf("Finished setting up board.\n");
@@ -502,15 +476,7 @@ public:
 			int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
 			undoMove(move);
 
-			/*if (occupiedBoard[1] != origBoard1 || occupiedBoard[2] != origBoard2) {
-				printf("ERROR, ERROR. Make unmake not resetting to same board position. Iteration %d within the generated moves.\n", i);
-				move.printMove();
-				printf("\n %llu, %llu.\n", origBoard1, origBoard2);
-			}*/
-
 			if (!moveStatus) {
-				//move.printMove();
-				//printf(" %d\n", kingDistance);
 				if (kingDistance > 1) {
 					validMoves.push_back(move);
 				}
@@ -641,13 +607,11 @@ private:
 					}
 					moves[insertionIndex] = Move(square, targetSquare, 0);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 				else {
 					moves[insertionIndex] = Move(square, targetSquare, 0);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -667,7 +631,6 @@ private:
 					if (rawBoard[(56 * wantedPlayer - 56) + 7] == (8 * wantedPlayer | 5)) {// Check the rook still exists
 						moves[insertionIndex] = Move(square, square + 2, 6);
 						insertionIndex++;
-						//moves.push_back(Move(square, square + 2, 6));
 						movesGenerated++;
 					}
 				}
@@ -687,7 +650,6 @@ private:
 					if (rawBoard[(56 * wantedPlayer - 56)] == (8 * wantedPlayer | 5)) {	// Check the rook still exists
 						moves[insertionIndex] = Move(square, square - 2, 6);
 						insertionIndex++;
-						//moves.push_back(Move(square, square - 2, 6));
 						movesGenerated++;
 					}
 				}
@@ -785,6 +747,62 @@ private:
 		}
 		return movesGenerated;
 	}
+	
+	int generateRookMoves(int square, vector<Move>& moves, int insertionIndex, int safePlayer) {
+		uint64_t slidingMoveBitboard = 0ull;
+		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
+		int movesGenerated = 0;
+
+		uint64_t relevantBlockers = blockerBitboard | refinedRookMagics[square].negMask;
+		uint64_t hash = relevantBlockers * refinedRookMagics[square].blackMagic;
+		uint64_t tableIndex = (hash >> rookShift) + refinedRookMagics[square].tableOffset;
+
+		if (lookup_table[tableIndex] == 0) {
+			lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
+			printf("ERROR, IMPOSSIBLE. Rook MAGIC BOARD GEN FINDING A NEW POSITION\n");
+		}
+		slidingMoveBitboard = lookup_table[tableIndex];
+
+		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
+
+		while (slidingMoveBitboard != 0) {
+			int targetSquare = popLSB(slidingMoveBitboard);
+
+			moves[insertionIndex] = Move(square, targetSquare, 0);
+			insertionIndex++;
+			movesGenerated++;
+		}
+
+		return movesGenerated;
+	}
+
+	int generateBishopMoves(int square, vector<Move>& moves, int insertionIndex, int safePlayer) {
+		uint64_t slidingMoveBitboard = 0ull;
+		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
+		int movesGenerated = 0;
+
+		uint64_t relevantBlockers = blockerBitboard | refinedBishopMagics[square].negMask;
+		uint64_t hash = relevantBlockers * refinedBishopMagics[square].blackMagic;
+		uint64_t tableIndex = (hash >> bishopShift) + refinedBishopMagics[square].tableOffset;
+
+		if (lookup_table[tableIndex] == 0) {
+			//lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
+			printf("ERROR, IMPOSSIBLE. BISHOP BOARD GEN FINDING A NEW POSITION\n");
+		}
+		slidingMoveBitboard = lookup_table[tableIndex];
+
+		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
+
+		while (slidingMoveBitboard != 0) {
+			int targetSquare = popLSB(slidingMoveBitboard);
+
+			moves[insertionIndex] = Move(square, targetSquare, 0);
+			insertionIndex++;
+			movesGenerated++;
+		}
+
+		return movesGenerated;
+	}
 
 	int generateSlidingMoves(int square, int pieceType, vector<Move>& moves, int insertionIndex, int safePlayer) {
 		int movesGenerated = 0;
@@ -863,13 +881,14 @@ private:
 				insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 4: // Bishop
-				insertionIndex += generateSlidingMoves(square, 4, listOfMoves, insertionIndex, wantedPlayer);
+				insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 5: // Rook
-				insertionIndex += generateSlidingMoves(square, 5, listOfMoves, insertionIndex, wantedPlayer);
+				insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			case 6: // Queen
-				insertionIndex += generateSlidingMoves(square, 6, listOfMoves, insertionIndex, wantedPlayer);
+				insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+				insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 				break;
 			default:
 				printf("ERROR. Invalid piece type for move generation. \n.");
@@ -878,45 +897,6 @@ private:
 		}
 		return insertionIndex;
 	}
-
-	/*vector<Move> generatePseudoLegalMoves(int wantedPlayer) {
-		vector<Move> listOfMoves;
-
-		for (int square = 0; square < 64; square++) {
-			int pieceOnBoard = rawBoard[square];
-			int pieceTypeAtBoard = pieceOnBoard & 7;
-
-			if (pieceOnBoard / 8 == wantedPlayer) {		// This piece can move
-
-				switch (pieceTypeAtBoard)
-				{
-				case 1: //King
-					generateKingMoves(square, listOfMoves, wantedPlayer);
-					break;
-				case 2:	// Pawn
-					generatePawnMovesV2(square, listOfMoves, wantedPlayer);
-					break;
-				case 3: // Knight
-					generateKnightMoves(square, listOfMoves, wantedPlayer);
-					break;
-				case 4: // Bishop
-					generateSlidingMoves(square, 4, listOfMoves, wantedPlayer);
-					break;
-				case 5: // Rook
-					generateSlidingMoves(square, 5, listOfMoves, wantedPlayer);
-					break;
-				case 6: // Queen
-					generateSlidingMoves(square, 6, listOfMoves, wantedPlayer);
-					break;
-				default:
-					printf("ERROR. Invalid piece type for move generation. \n.");
-					break;
-				}
-			}
-		}
-		return listOfMoves;
-	}
-	*/
 
 	void generateAttacks(int wantedPlayer) {
 		int insertionIndex = 0;
@@ -955,13 +935,17 @@ private:
 					insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 4: // Bishop
-					insertionIndex += generateSlidingMoves(square, 4, listOfMoves, insertionIndex, wantedPlayer);
+					//insertionIndex += generateSlidingMoves(square, 4, listOfMoves, insertionIndex, wantedPlayer);
+					insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 5: // Rook
-					insertionIndex += generateSlidingMoves(square, 5, listOfMoves, insertionIndex, wantedPlayer);
+					insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+					//insertionIndex += generateSlidingMoves(square, 5, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 6: // Queen
-					insertionIndex += generateSlidingMoves(square, 6, listOfMoves, insertionIndex, wantedPlayer);
+					//insertionIndex += generateSlidingMoves(square, 6, listOfMoves, insertionIndex, wantedPlayer);
+					insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+					insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
 					break;
 				case 1:
 					break;
