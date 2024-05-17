@@ -28,29 +28,19 @@ uint64_t moveChecker(int depth) {
 
 	
 	vector<Move> allMoves = testBoard.generateLegalMovesV2();
-	uint64_t origBoard1 = testBoard.occupiedBoard[1];
-	uint64_t origBoard2 = testBoard.occupiedBoard[2];
+	uint64_t origBoard1 = testBoard.pieceBoards[2];
+	uint64_t origBoard2 = testBoard.pieceBoards[3];
 
-	/*if (testBoard.occupiedBoard[1] == 9223372071485357969 && testBoard.occupiedBoard[2] == 10483591582714970112) {
-		printf("HERE");
-	}*/
-
-	//bool focusBoard1 = testBoard.occupiedBoard[1] == 7962936007834513297 && testBoard.occupiedBoard[2] == 10483808061445853294;
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
 		
-		/*if (depth == 3 && move.getStartSquare() == 50 && move.getEndSquare() == 34) {
-			printf("Here");
+		/*if (move.getStartSquare() == 54 && move.getEndSquare() == 38 && depth == 2) {
+			printf("Examine Here\n");
 		}
-		if (focusBoard1 && i == 0) {
-			printf("Here3");
+		if (move.getStartSquare() == 11 && move.getEndSquare() == 27 && depth == 3) {
+			printf("Examine Here\n");
 		}*/
-
-		/*if (i == 0 && depth == 2) {
-			printf("Here3\n");
-		}*/
-		
 
 		testBoard.makeMove(move);
 		
@@ -59,11 +49,11 @@ uint64_t moveChecker(int depth) {
 
 		testBoard.undoMove(move);
 
-		/*if (testBoard.occupiedBoard[1] != origBoard1 || testBoard.occupiedBoard[2] != origBoard2) {
+		if (testBoard.pieceBoards[2] != origBoard1 || testBoard.pieceBoards[3] != origBoard2) {
 			printf("ERROR, ERROR. Make unmake not resetting to same board position. Iteration %d within the generated moves.\n", i);
 			move.printMove();
 			printf("\n %llu, %llu.\n", origBoard1, origBoard2);
-		}*/
+		}
 
 		if (DEBUG == 1 && depth == testDepth) {
 			move.printMove();
@@ -113,8 +103,9 @@ void importPerftTest() {
 }
 
 void perftTest() {
-	string customPos = "k7/8/8/7p/6P1/8/8/K7 w - - 0 1";
-	//customPos = "k7/8/8/7p/6P1/8/K7/8 b - - 1 1";
+	string customPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+	customPos = FENs[1];
+	//customPos = "rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1";
 	//customPos = "k7/8/8/8/6Pp/8/K7/8 w - - 0 2";
 	//customPos = "k7/8/8/8/6Pp/K7/8/8 b - - 1 2";
 	//customPos = "k7/8/8/8/6P1/K6p/8/8 w - - 0 3";
@@ -179,11 +170,10 @@ int main()
 {
 	importPerftTest();
 	auto start = chrono::high_resolution_clock::now();
-	for (int i = 0; i < 1; i++) {
-		completePerftTest();
-	}
+	
+	//completePerftTest();
 
-	//perftTest();
+	perftTest();
 	
 	auto stop = chrono::high_resolution_clock::now();
 

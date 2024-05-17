@@ -24,6 +24,8 @@ public:
 	int currentPlayer;
 
 	uint64_t occupiedBoard[3];
+	uint64_t pieceBoards[7];
+
 	int kingLocations[3];
 	uint64_t attackingSquares[3];
 
@@ -34,12 +36,16 @@ public:
 		int square = 8 * row + col;
 		rawBoard[square] = piece;
 		occupiedBoard[piece / 8] |= (1ull) << square;
+		pieceBoards[piece % 8] |= (1ull) << square;
 	}
 
 	void removePiece(int row, int col) {
 		int square = 8 * row + col;
 		occupiedBoard[rawBoard[square] / 8] &= ~(1ull << square);
 		rawBoard[square] = 0;
+
+		for(int i = 1; i < 7; i++)
+			pieceBoards[i] &= ~((1ull) << square);
 	}
 
 	bool isWhitePiece(int row, int col) {
@@ -76,6 +82,11 @@ public:
 		occupiedBoard[movingPiece / 8] |= (1ull << targetSquare);
 		occupiedBoard[(movingPiece / 8 % 2) + 1] &= ~(1ull << pieceRemovalSquare);
 
+		pieceBoards[movingPiece % 8] &= ~(1ull << startSquare);
+		pieceBoards[newInfo.capturedPieceType % 8] &= ~(1ull << pieceRemovalSquare);
+		pieceBoards[movingPiece % 8] |= (1ull << targetSquare);
+
+
 		newInfo.enPassantSquare = 64;
 
 		// double pawn push
@@ -92,12 +103,18 @@ public:
 				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
 				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 5));
 
+				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
+				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 5));
+
 			} else {
 				rawBoard[(targetSquare / 8) * 8 + 3] = rawBoard[(targetSquare / 8) * 8];
 				rawBoard[(targetSquare / 8) * 8] = 0;
 
 				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8));
 				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 3));
+
+				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8));
+				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 3));
 			}
 
 			// Remove castling rights for that side
@@ -108,8 +125,10 @@ public:
 		// Handle promotion
 		else if (flags > 1 && flags < 6) {
 			rawBoard[targetSquare] = (currentPlayer * 8) | (flags + 1);
+
+			pieceBoards[2] &= ~(1ull << targetSquare);
+			pieceBoards[flags + 1] |= (1ull << targetSquare);
 		}
-		// En passant capture
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
@@ -156,9 +175,13 @@ public:
 
 		occupiedBoard[movingPiece / 8] &= ~(1ull << targetSquare);
 		occupiedBoard[movingPiece / 8] |= (1ull << startSquare);
+
+		pieceBoards[movingPiece % 8] &= ~(1ull << targetSquare);
+		pieceBoards[movingPiece % 8] |= (1ull << startSquare);
 		
 		if (formerStatus.capturedPieceType) {
 			occupiedBoard[(movingPiece / 8 % 2) + 1] |= (1ull << pieceRemovalSquare);
+			pieceBoards[formerStatus.capturedPieceType % 8] |= (1ull << pieceRemovalSquare);
 		}
 
 		if (flags == 6) {
@@ -168,16 +191,26 @@ public:
 
 				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
 				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 7));
+
+				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 7));
+				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
+
 			} else {
 				rawBoard[(targetSquare / 8) * 8] = rawBoard[(targetSquare / 8) * 8 + 3];
 				rawBoard[(targetSquare / 8) * 8 + 3] = 0;
 
 				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
 				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 0));
+
+				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8));
+				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
 			}
 		}
 		else if (flags > 1 && flags < 6) {	// Reset to pawn
 			rawBoard[startSquare] = ((currentPlayer % 2 + 1) * 8) | 2;
+
+			pieceBoards[2] |= (1ull << startSquare);	// Fixing incorrect move that occurred earlier
+			pieceBoards[flags + 1] &= ~(1ull << startSquare);
 		}
 
 		// King location check
@@ -448,6 +481,9 @@ public:
 			}
 		}
 
+		for (int i = 0; i < 7; i++) {
+			pieceBoards[i] = 0ull;
+		}
 		precomputeDistances();
 		generateMagics();
 		
@@ -458,31 +494,46 @@ public:
 	}
 
 	vector<Move> generateLegalMovesV2() {	// Using faster check detection
-		uint64_t origBoard1 = occupiedBoard[1];
-		uint64_t origBoard2 = occupiedBoard[2];
+		uint64_t origBoard1 = pieceBoards[2];
+		uint64_t origBoard2 = pieceBoards[3];
 
-		vector<Move> allMoves(219);
+		vector<Move> allMoves(256);
 
-		int moveCount = generatePseudoLegalMovesV2(allMoves, currentPlayer);
-		vector<Move> validMoves;
+		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
+		vector<Move> validMoves(256);
 		int origCurrentPlayer = currentPlayer;
+
+		int moveIndex = 0;
 
 		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
 			bool moveStatus = true;
 			
+			/*if (move.getStartSquare() == 14 && move.getEndSquare() == 6) {
+				printf("Examine Here\n");
+			}*/
+
 			makeMove(move);
 			moveStatus = sideInCheck(origCurrentPlayer);
 			int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
 			undoMove(move);
 
+			if (pieceBoards[2] != origBoard1 || pieceBoards[3] != origBoard2) {
+				printf("ERROR, ERROR. Make unmake not resetting correctly during legal movegen. Iteration %d within the generated moves.\n", i);
+				move.printMove();
+				printf("\n %llu, %llu.\n", origBoard1, origBoard2);
+			}
+
+
 			if (!moveStatus) {
 				if (kingDistance > 1) {
-					validMoves.push_back(move);
+					validMoves[moveIndex] = move;
+					moveIndex++;
 				}
 			}
 		}
 
+		validMoves.resize(moveIndex);
 		return validMoves;
 
 	}
@@ -703,7 +754,6 @@ private:
 					moves[insertionIndex] = Move(square, targetSquare, 7);
 					insertionIndex++;
 					movesGenerated++;
-					//moves.push_back(Move(square, targetSquare, 7));
 				}
 			}
 			else if (square / 8 == 6 && wantedPlayer == 2) {
@@ -712,7 +762,6 @@ private:
 					moves[insertionIndex] = Move(square, targetSquare, 7);
 					insertionIndex++;
 					movesGenerated++;
-					//moves.push_back(Move(square, targetSquare, 7));
 				}
 			}
 		}
@@ -726,7 +775,6 @@ private:
 				for (int flag = 2; flag <= 5; flag++) {
 					moves[insertionIndex] = Move(square, targetSquare, flag);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, flag));
 					movesGenerated++;
 				}
 			}
@@ -734,13 +782,11 @@ private:
 				if (targetSquare == boardStates.top().enPassantSquare) {
 					moves[insertionIndex] = Move(square, targetSquare, 1);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 1));
 					movesGenerated++;
 				}
 				else {
 					moves[insertionIndex] = Move(square, targetSquare, 0);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -828,14 +874,12 @@ private:
 					}
 					moves[insertionIndex] = Move(square, targetSquare, 0);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 					break;
 				}
 				else {
 					moves[insertionIndex] = Move(square, targetSquare, 0);
 					insertionIndex++;
-					//moves.push_back(Move(square, targetSquare, 0));
 					movesGenerated++;
 				}
 			}
@@ -855,13 +899,54 @@ private:
 				continue;
 			moves[insertionIndex] = Move(square, targetSquare, 0);
 			insertionIndex++;
-			//moves.push_back(Move(square, targetSquare, 0));
 			movesGenerated++;
 		}
 
 		return movesGenerated;
 	}
 
+	int generatePseudoLegalMovesV3(vector<Move>& listOfMoves, int wantedPlayer) {
+		int insertionIndex = 0;
+		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
+
+		uint64_t kingBoard = relevantOccupiedBoard & pieceBoards[1];
+		uint64_t pawnBoard = relevantOccupiedBoard & pieceBoards[2];
+		uint64_t knightBoard = relevantOccupiedBoard & pieceBoards[3];
+		uint64_t bishopBoard = relevantOccupiedBoard & pieceBoards[4];
+		uint64_t rookBoard = relevantOccupiedBoard & pieceBoards[5];
+		uint64_t queenBoard = relevantOccupiedBoard & pieceBoards[6];
+
+		insertionIndex += generateKingMoves(popLSB(kingBoard), listOfMoves, insertionIndex, wantedPlayer);
+
+		while (pawnBoard != 0) {
+			int square = popLSB(pawnBoard);
+			insertionIndex += generatePawnMovesV2(square, listOfMoves, insertionIndex, wantedPlayer);
+		}
+
+		while (knightBoard != 0) {
+			int square = popLSB(knightBoard);
+			insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+		}
+
+		while (bishopBoard != 0) {
+			int square = popLSB(bishopBoard);
+			insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+		}
+
+		while (rookBoard != 0) {
+			int square = popLSB(rookBoard);
+			insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+		}
+
+		while (queenBoard != 0) {
+			int square = popLSB(queenBoard);
+			insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+			insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
+		}
+
+		return insertionIndex;
+	}
+	
 	int generatePseudoLegalMovesV2(vector<Move>& listOfMoves, int wantedPlayer) {
 		int insertionIndex = 0;
 
@@ -900,7 +985,6 @@ private:
 
 	void generateAttacks(int wantedPlayer) {
 		int insertionIndex = 0;
-
 
 		vector<Move> listOfMoves(219);
 		attackingSquares[wantedPlayer] = 0ull;
