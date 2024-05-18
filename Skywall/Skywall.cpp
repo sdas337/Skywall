@@ -110,7 +110,7 @@ void perftTest() {
 	//customPos = "k7/8/8/8/6Pp/K7/8/8 b - - 1 2";
 	//customPos = "k7/8/8/8/6P1/K6p/8/8 w - - 0 3";
 
-	testDepth = 5;
+	testDepth = 4;
 	testBoard.loadBoardFromFen(customPos);
 
 	// breaks here
@@ -171,9 +171,10 @@ int main()
 	importPerftTest();
 	auto start = chrono::high_resolution_clock::now();
 	
-	//completePerftTest();
+	//testBoard.printBoard();
+	completePerftTest();
 
-	perftTest();
+	//perftTest();
 	
 	auto stop = chrono::high_resolution_clock::now();
 
