@@ -50,7 +50,6 @@ public:
 
 	bool isWhitePiece(int row, int col) {
 		return occupiedBoard[1] & (1ull << (8 * row + col));
-		//return (rawBoard[8 * row + col] & 8) == 8;
 	}
 
 	void makeMove(Move move) {
@@ -500,9 +499,6 @@ public:
 	}
 
 	vector<Move> generateLegalMovesV2() {	// Using faster check detection
-		uint64_t origBoard1 = pieceBoards[2];
-		uint64_t origBoard2 = pieceBoards[3];
-
 		vector<Move> allMoves(256);
 
 		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
@@ -514,22 +510,10 @@ public:
 		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
 			bool moveStatus = true;
-			
-			/*if (i == 5) {
-				printf("Examine Here\n");
-			}*/
-
 			makeMove(move);
 			moveStatus = sideInCheck(origCurrentPlayer);
 			int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
 			undoMove(move);
-
-			if (pieceBoards[2] != origBoard1 || pieceBoards[3] != origBoard2) {
-				printf("ERROR, ERROR. Make unmake not resetting correctly during legal movegen. Iteration %d within the generated moves.\n", i);
-				move.printMove();
-				printf("\n %llu, %llu.\n", origBoard1, origBoard2);
-			}
-
 
 			if (!moveStatus) {
 				if (kingDistance > 1) {
@@ -816,46 +800,6 @@ private:
 		return slidingMoveBitboard;
 	}
 
-	/*
-	int generateSlidingMoves(int square, int pieceType, vector<Move>& moves, int insertionIndex, int safePlayer) {
-		int movesGenerated = 0;
-		int startMoveTypes = 0;
-		int endMoveTypes = 8;
-
-		if (pieceType == 4) {
-			startMoveTypes = 4;
-		}
-		else if (pieceType == 5) {
-			endMoveTypes = 4;
-		}
-
-		// Generate slidingMoves
-		for (int i = startMoveTypes; i < endMoveTypes; i++) {
-			for (int j = 1; j <= distanceFromEdge[square][i]; j++) {
-				int targetSquare = square + directions[i] * j;
-				int targetPiece = rawBoard[targetSquare];
-
-				if (targetPiece != 0) {
-					if ((targetPiece / 8) == safePlayer) {
-						break;
-					}
-					moves[insertionIndex] = Move(square, targetSquare, 0);
-					insertionIndex++;
-					movesGenerated++;
-					break;
-				}
-				else {
-					moves[insertionIndex] = Move(square, targetSquare, 0);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-		}
-
-		return movesGenerated;
-	}
-	*/
-
 	uint64_t generateKnightMoves(int square, int safePlayer) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
 
@@ -930,44 +874,6 @@ private:
 		return insertionIndex;
 	}
 	
-	/*
-	int generatePseudoLegalMovesV2(vector<Move>& listOfMoves, int wantedPlayer) {
-		int insertionIndex = 0;
-
-		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
-		while (relevantOccupiedBoard != 0) {
-			int square = popLSB(relevantOccupiedBoard);
-			int pieceTypeAtBoard = rawBoard[square] & 7;
-			switch (pieceTypeAtBoard)
-			{
-			case 1: //King
-				insertionIndex += generateKingMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			case 2:	// Pawn
-				insertionIndex += generatePawnMovesV2(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			case 3: // Knight
-				insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			case 4: // Bishop
-				insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			case 5: // Rook
-				insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			case 6: // Queen
-				insertionIndex += generateBishopMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				insertionIndex += generateRookMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-				break;
-			default:
-				printf("ERROR. Invalid piece type for move generation. \n.");
-				break;
-			}
-		}
-		return insertionIndex;
-	}
-	*/
-
 	void generateAttacksV2(int wantedPlayer) {
 		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
 		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
@@ -992,10 +898,6 @@ private:
 			}
 			uint64_t pawnAttacks = (currentPawnMask & captureFiles);
 			attackingSquares[wantedPlayer] |= pawnAttacks;
-			/*while (pawnAttacks != 0) {
-				int targetSquare = popLSB(pawnAttacks);
-				attackingSquares[wantedPlayer] |= (1ull << targetSquare);
-			}*/
 		}
 
 		while (knightBoard != 0) {
@@ -1027,80 +929,4 @@ private:
 			attackingSquares[wantedPlayer] |= queenMoves;
 		}
 	}
-
-	/*
-	void generateAttacks(int wantedPlayer) {
-		int insertionIndex = 0;
-
-		vector<Move> listOfMoves(219);
-		attackingSquares[wantedPlayer] = 0ull;
-
-		for (int square = 0; square < 64; square++) {
-			int pieceOnBoard = rawBoard[square];
-			int pieceTypeAtBoard = pieceOnBoard & 7;
-
-			if (pieceOnBoard / 8 == wantedPlayer) {		// This piece can move
-				switch (pieceTypeAtBoard)
-				{
-				case 2: { // Pawn
-					uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
-					uint64_t currentFileMask = 0x101010101010101 << (square % 8);
-
-					uint64_t captureFiles = 0;
-					if (square % 8 > 0) {
-						captureFiles |= (currentFileMask >> 1);
-					}
-					if (square % 8 < 7) {
-						captureFiles |= (currentFileMask << 1);
-					}
-					uint64_t pawnAttacks = (currentPawnMask & captureFiles);
-					while (pawnAttacks != 0) {
-						int targetSquare = popLSB(pawnAttacks);
-						attackingSquares[wantedPlayer] |= (1ull << targetSquare);
-					}
-					break;
-				}
-
-				case 3: { // Knight
-					//insertionIndex += generateKnightMoves(square, listOfMoves, insertionIndex, wantedPlayer);
-					uint64_t knightMoves = generateKnightMoves(square, wantedPlayer);
-					attackingSquares[wantedPlayer] |= knightMoves;
-					break;
-				}
-
-				case 4: {  // Bishop
-					uint64_t bishopMoves = generateBishopMoves(square, wantedPlayer);
-					attackingSquares[wantedPlayer] |= bishopMoves;
-					break;
-				}
-
-				case 5: { // Rook
-					uint64_t rookMoves = generateRookMoves(square, wantedPlayer);
-					attackingSquares[wantedPlayer] |= rookMoves;
-					break;
-				}
-
-				case 6: // Queen
-					attackingSquares[wantedPlayer] |= generateBishopMoves(square, wantedPlayer);
-					attackingSquares[wantedPlayer] |= generateRookMoves(square, wantedPlayer);
-					break;
-
-				case 1:
-					break;
-				default:
-					printf("ERROR. Invalid piece type for move generation. \n.");
-					break;
-				}
-			}
-		}
-
-		/*for (int i = 0; i < insertionIndex; i++) {
-			Move m = listOfMoves[i];
-		//
-			attackingSquares[wantedPlayer] |= (1ull << m.getEndSquare());
-		}
-
-		return;
-	}
-	*/
 };

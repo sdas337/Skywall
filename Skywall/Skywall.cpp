@@ -26,22 +26,11 @@ uint64_t moveChecker(int depth) {
 		return 1;
 	}
 
-	
 	vector<Move> allMoves = testBoard.generateLegalMovesV2();
-	uint64_t origBoard1 = testBoard.pieceBoards[2];
-	uint64_t origBoard2 = testBoard.pieceBoards[3];
-
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
 		
-		/*if (move.getStartSquare() == 54 && move.getEndSquare() == 38 && depth == 2) {
-			printf("Examine Here\n");
-		}
-		if (move.getStartSquare() == 11 && move.getEndSquare() == 27 && depth == 3) {
-			printf("Examine Here\n");
-		}*/
-
 		testBoard.makeMove(move);
 		
 		uint64_t movesMade = moveChecker(depth - 1);
@@ -49,11 +38,6 @@ uint64_t moveChecker(int depth) {
 
 		testBoard.undoMove(move);
 
-		if (testBoard.pieceBoards[2] != origBoard1 || testBoard.pieceBoards[3] != origBoard2) {
-			printf("ERROR, ERROR. Make unmake not resetting to same board position. Iteration %d within the generated moves.\n", i);
-			move.printMove();
-			printf("\n %llu, %llu.\n", origBoard1, origBoard2);
-		}
 
 		if (DEBUG == 1 && depth == testDepth) {
 			move.printMove();
