@@ -1,6 +1,8 @@
-using namespace std;
+#pragma once
 
-#include <string>
+#include "globals.h"
+
+using namespace std;
 
 // Sourced from Clarity
 int popLSB(uint64_t& bitboard) {
@@ -9,3 +11,27 @@ int popLSB(uint64_t& bitboard) {
     return lsb;
 }
 
+vector<string> split(const string word, const char seperator) {
+    stringstream stream(word);
+    string segment;
+    vector<string> list;
+
+    // every time that it can get a segment
+    while (getline(stream, segment, seperator)) {
+        // add it to the vector
+        list.push_back(segment);
+    }
+
+    return list;
+}
+
+int squareNameToValue(string square) {
+    int num = 0;
+
+    int col = (int)(square[0]) - 97;
+    int row = (int)(square[1]) - 49;
+
+    num = 8 * row + col;
+
+    return num;
+}

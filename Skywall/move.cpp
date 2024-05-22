@@ -1,6 +1,8 @@
-using namespace std;
-#include "globals.cpp"
+#pragma once
+#include "globals.h"
 
+
+using namespace std;
 
 /*
  *	16 bit move structure in the form of FFFF/SSSSSS/EEEEEE
@@ -36,13 +38,19 @@ public:
 		rawValue = (flags << 12) | (startSquare << 6) | (endSquare);
 	}
 
-	void printMove() {
-		printf("%c%d%c%d", (char)(getStartSquare() % 8 + 97), (getStartSquare() / 8 + 1), (char)(getEndSquare() % 8 + 97), (getEndSquare() / 8 + 1));
+	string printMove() {
+		string result = "";
+		result += (char)(getStartSquare() % 8 + 97);
+		result += (char)(getStartSquare() / 8 + 49);
+		result += (char)(getEndSquare() % 8 + 97);
+		result += (char)(getEndSquare() / 8 + 49);
+		return result;
 	}
 
 	uint16_t getRawValue() {
 		return rawValue;
 	}
+
 private:
 	uint16_t rawValue;
 };

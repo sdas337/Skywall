@@ -1,7 +1,10 @@
+#pragma once
+#include "globals.h"
+
 using namespace std;
 
-#include <vector>
-#include <set>
+
+
 // filter ally vs enemy blockers later
 
 // https://talkchess.com/forum/viewtopic.php?t=64790 is the source of the black fixed magics

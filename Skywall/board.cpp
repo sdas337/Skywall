@@ -1,11 +1,12 @@
-using namespace std;
+#pragma once
 
 #include "move.cpp"
 #include "magics.cpp"
 
-#include <inttypes.h>
-#include <vector>
-#include <stack>
+#include "globals.h"
+
+
+using namespace std;
 
 struct BoardStateInformation {
 	int enPassantSquare;
@@ -41,7 +42,8 @@ public:
 
 	void removePiece(int row, int col) {
 		int square = 8 * row + col;
-		occupiedBoard[rawBoard[square] / 8] &= ~(1ull << square);
+		occupiedBoard[1] &= ~(1ull << square);
+		occupiedBoard[2] &= ~(1ull << square);
 		rawBoard[square] = 0;
 
 		for(int i = 1; i < 7; i++)
@@ -226,7 +228,6 @@ public:
 	// Checking if we're in check 
 	bool sideInCheck(int player) {
 		int otherPlayer = player % 2 + 1;
-		int numMoves;
 
 		// perform several partial move gens beginning from other player's king location
 		uint64_t knightMoves = generateKnightMoves(kingLocations[player], player);
@@ -306,6 +307,8 @@ public:
 	}
 
 	void printBoard() {
+		//ofstream file("../../../testFiles/boardStates.txt");
+
 		int toPrintBoard[64];
 
 		for (int i = 0; i < 64; i++) {
@@ -324,18 +327,23 @@ public:
 
 
 		for (int i = 7; i >= 0; i--) {
+			//file << "---------------------------------\n";
 			printf("---------------------------------\n");
 			for (int j = 0; j < 8; j++) {
 				int targetSquare = 8 * i + j;
-				printf("| ");
+				//file << "| ";
+				//file << prettyPiecePrint(i, j, toPrintBoard[targetSquare] % 8) << " ";
 
+				printf("| ");
 				printf("%c ", prettyPiecePrint(i, j, toPrintBoard[targetSquare] % 8));
 			}
-
+			//file << "|\n";
 			printf("|\n");
 		}
+		//file << "---------------------------------\n";
 		printf("---------------------------------\n");
 
+		//file.close();
 	}
 
 	void loadBoardFromFen(string fen) {
@@ -489,9 +497,10 @@ public:
 		for (int i = 0; i < 7; i++) {
 			pieceBoards[i] = 0ull;
 		}
+
 		precomputeDistances();
 		generateMagics();
-		
+
 		string startingBoardPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 		loadBoardFromFen(startingBoardPos);
 
