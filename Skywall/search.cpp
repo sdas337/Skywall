@@ -45,12 +45,6 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 	bool qsearch = (depth <= 0);
 	int newDepth = depth - 1;
 
-	if (qsearch) {
-		int score = evaluate(board);
-		board.nodes++;
-		return score;
-	}
-
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
 			(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
@@ -68,13 +62,13 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 		return -900000 - depth;
 	}
 
-	/*if (qsearch) {
+	if (qsearch) {
 		int score = evaluate(board);
 
 		if (score >= beta)
 			return score;
 		alpha = max(alpha, score);
-	}*/
+	}
 
 
 	// Order moves portion
@@ -120,7 +114,7 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 
 		board.makeMove(move);
 
-		//board.nodes++;
+		board.nodes++;
 		
 		if (i == 0) {
 			currentScore = -negamax(board, time, newDepth, -beta, -alpha);
