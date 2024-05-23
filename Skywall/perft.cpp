@@ -9,7 +9,7 @@ Board testBoard;
 
 int testDepth;
 
-int DEBUG = 1;
+int DEBUG = 0;
 
 uint64_t moveChecker(int depth) {
 	uint64_t nodes = 0;
@@ -32,9 +32,7 @@ uint64_t moveChecker(int depth) {
 
 
 		if (DEBUG == 1 && depth == testDepth) {
-			move.printMove();
-			printf(" - %llu\n", movesMade);
-
+			cout << move.printMove() << " - " << movesMade << "\n";
 		}
 	}
 	return nodes;

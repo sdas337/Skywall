@@ -8,7 +8,6 @@
 #include "perft.cpp"
 #include "search.cpp"
 
-#include <chrono>
 
 using namespace std;
 
@@ -16,9 +15,10 @@ Board mainBoard;
 
 void testing() {
 	importPerftTest();
+	printf("Beginning mass perft test.\n");
 	auto start = chrono::high_resolution_clock::now();
-	//completePerftTest();
-	perftTest();
+	completePerftTest();
+	//perftTest();
 	auto stop = chrono::high_resolution_clock::now();
 
 	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
@@ -51,7 +51,7 @@ void positionHandling(vector<string> &instruction) {
 			int endSquare = squareNameToValue(currentMove.substr(2, 4));
 
 			if (mainBoard.rawBoard[startSquare] % 8 == 2) {	// Pawn Move
-				if (endSquare == mainBoard.boardStates.top().enPassantSquare) {
+				if (endSquare == mainBoard.boardStates.back().enPassantSquare) {
 					flag = 1;
 				}
 				else if (currentMove.size() == 5) {
@@ -178,8 +178,12 @@ void uciHandling() {
 
 int main()
 {
+	initEvalTables();
+
 	//testing();
 	uciHandling();
+
+	//searchBoard(mainBoard, 60000);
 
 	return 0;
 }
