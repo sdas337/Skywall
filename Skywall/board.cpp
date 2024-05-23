@@ -75,6 +75,16 @@ public:
 		return false;
 	}
 
+	bool isCapture(Move move) {
+		int pieceRemovalSquare = move.getEndSquare();
+		int flags = move.getFlag();
+		if (flags == 1 || flags == 7) {
+			pieceRemovalSquare += (currentPlayer == 1 ? -8 : 8);
+		}
+
+		return rawBoard[pieceRemovalSquare] != 0;
+	}
+
 	void makeMove(Move move) {
 		BoardStateInformation newInfo = boardStates.back();
 
@@ -552,7 +562,7 @@ public:
 		printf("Finished setting up board.\n");
 	}
 
-	vector<Move> generateLegalMovesV2() {	// Using faster check detection
+	vector<Move> generateLegalMovesV2(bool onlyCaptures) {	// Using faster check detection
 		vector<Move> allMoves(256);
 
 		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
@@ -563,6 +573,11 @@ public:
 
 		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
+
+			if (onlyCaptures && !isCapture(move)) {
+				continue;
+			}
+
 			bool moveStatus = true;
 			makeMove(move);
 			moveStatus = sideInCheck(origCurrentPlayer);

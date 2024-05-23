@@ -39,13 +39,17 @@ int maxTimeForMove = 0;
 
 
 int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int depth, int alpha, int beta) {
-	if (depth == 0) {
-		board.nodes++;
-		return evaluate(board);
-	}
-
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
+
+	bool qsearch = (depth <= 0);
+	int newDepth = depth - 1;
+
+	if (qsearch) {
+		int score = evaluate(board);
+		board.nodes++;
+		return score;
+	}
 
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
@@ -55,14 +59,23 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 			return currentEntry.score;
 	}
 
-	vector<Move> allMoves = board.generateLegalMovesV2();
+	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
 
-	if (allMoves.size() == 0) {
+	if (!qsearch && allMoves.size() == 0) {
 		if (board.fiftyMoveCheck() || board.repeatedPositionCheck()) {
 			return -10;	// small contempt for draw
 		}
 		return -900000 - depth;
 	}
+
+	/*if (qsearch) {
+		int score = evaluate(board);
+
+		if (score >= beta)
+			return score;
+		alpha = max(alpha, score);
+	}*/
+
 
 	// Order moves portion
 	vector<int> moveScores(allMoves.size());
@@ -72,14 +85,18 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m)
 			score = 1000000;
 
-		if (board.rawBoard[allMoves[i].getEndSquare()] != 0)
+		if (board.isCapture(allMoves[i]))
 			score += 500 * (board.rawBoard[allMoves[i].getEndSquare()] % 8 - board.rawBoard[allMoves[i].getStartSquare()] % 8);
 
 		moveScores[i] = score;
 	}
 
-	int bestScore = -999999;
+	int bestScore = -999999, currentScore;
 	Move bestMove = Move(0,0,0);
+
+	// Check Extensions
+	//if (board.sideInCheck(board.currentPlayer))
+		//newDepth++;
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 
@@ -102,7 +119,19 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 		Move move = allMoves[i];
 
 		board.makeMove(move);
-		int currentScore = -negamax(board, time, depth - 1, -beta, -alpha);
+
+		//board.nodes++;
+		
+		if (i == 0) {
+			currentScore = -negamax(board, time, newDepth, -beta, -alpha);
+		}
+		else {
+			currentScore = -negamax(board, time, newDepth-1, -alpha - 1, -alpha);
+			if (currentScore > alpha && currentScore < beta) {
+				currentScore = -negamax(board, time, newDepth, -beta, -alpha);
+			}
+		}
+
 		board.undoMove(move);
 
 		if (currentScore > bestScore) {
@@ -111,8 +140,7 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 			if (depth == chosenDepth) {
 				moveToPlay = bestMove;
 			}
-			if (currentScore > alpha)
-				alpha = currentScore;
+			alpha = max(currentScore, alpha);
 			if (alpha >= beta)
 				break;
 		}
@@ -131,10 +159,13 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 		}
 	}
 
-	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
-	board.ttEntries++;
+	if (currentEntry.depth == 0) {
+		board.ttEntries++;
+	}
 
-	return bestScore;
+	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, alpha, depth, boundType);
+
+	return alpha;
 }
 
 Move searchBoard(Board board, int time) {

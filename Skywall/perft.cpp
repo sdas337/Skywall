@@ -18,7 +18,7 @@ uint64_t moveChecker(int depth) {
 		return 1;
 	}
 
-	vector<Move> allMoves = testBoard.generateLegalMovesV2();
+	vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
