@@ -152,7 +152,20 @@ void instructionHandling(string instruction) {
 
 		}
 
-		cout << "bestmove " + result.printMove() + "\n";
+		cout << "bestmove " + result.printMove();
+		if (result.getFlag() > 1 && result.getFlag() < 7) {
+			if (result.getFlag() == 2)
+				cout << "n";
+			if (result.getFlag() == 3)
+				cout << "b";
+			if (result.getFlag() == 4)
+				cout << "r";
+			if (result.getFlag() == 5)
+				cout << "q";
+		}
+
+
+		cout << "\n";
 	}
 }
 
