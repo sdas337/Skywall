@@ -196,7 +196,7 @@ int main()
 	//testing();
 	uciHandling();
 
-	//searchBoard(mainBoard, 60000);
+	//searchBoard(mainBoard, 60000 * 1000);
 
 	return 0;
 }

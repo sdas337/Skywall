@@ -51,6 +51,12 @@ public:
 		return rawValue;
 	}
 
-private:
 	uint16_t rawValue;
+
+private:
+
 };
+
+bool operator==(const Move &lhs, const Move &rhs) {
+	return lhs.rawValue == rhs.rawValue;
+}

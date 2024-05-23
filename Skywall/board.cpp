@@ -22,6 +22,9 @@ public:
 	int rawBoard[64];
 
 	uint64_t nodes = 0;
+	uint64_t lookups = 0;
+	uint64_t ttEntries = 0;
+
 	int plyCount;
 	int currentPlayer;
 
