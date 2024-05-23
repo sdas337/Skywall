@@ -95,7 +95,7 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 
 		if (board.nodes & 4096 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - time).count() > maxTimeForMove)
-			break;
+			return 900000;
 
 		// Performing selection sort based on move scores above to order
 		for (size_t j = i + 1; j < allMoves.size(); j++) {
@@ -163,6 +163,7 @@ int negamax(Board &board, chrono::high_resolution_clock::time_point &time, int d
 }
 
 Move searchBoard(Board board, int time) {
+	
 	maxTimeForMove = time / 30;
 
 	cout << "Time\t\tDepth\t\tBest Move\tLookups\t\tTT Entries\tNodes\n";

@@ -183,7 +183,6 @@ void uciHandling() {
 			break;
 		}
 
-
 		instructionHandling(instruction);
 
 	}
