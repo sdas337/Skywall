@@ -47,7 +47,7 @@ int chosenDepth;
 int maxTimeForMove = 0;
 
 
-int negamax(int depth, int plyFromRoot, int alpha, int beta) {
+int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed) {
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
@@ -56,7 +56,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 	bool pvNode = (beta - alpha > 1);
 
 	bool notRoot = plyFromRoot > 0;
-	int newDepth = depth - 1;
 	int historyIndex = plyFromRoot % 2;
 
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
@@ -76,8 +75,10 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 		return -900000 - depth;
 	}
 
+	int eval = evaluate(board);
+
 	if (qsearch) {
-		int score = evaluate(board);
+		int score = eval;
 
 		if (score >= beta) {
 			return score;
@@ -85,8 +86,23 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 		alpha = max(alpha, score);
 	}
 	else if (!pvNode && !board.sideInCheck(board.currentPlayer)) {	// Pruning Technique Location
+		/*int rfMargin = 80 + 110 * depth;
+		if (depth <= 5 && eval - rfMargin >= beta) {
+			return eval - rfMargin;
+		}
 
+		if (nullMovePruningAllowed && depth > 1) {	// Null Move Pruning
+			board.makeNullMove();
+			int nullMoveScore = negamax(depth - 3, plyFromRoot + 1, -beta, -alpha, false);
+			board.undoNullMove();
+
+			if (nullMoveScore > beta) {
+				return nullMoveScore;
+			}
+		}*/
 	}
+
+	int newDepth = depth - 1;
 
 
 	// Order moves portion
@@ -159,13 +175,13 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 		}
 		
 		if (i == 0) {
-			currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha);
+			currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 		}
 		else {
-			currentScore = -negamax(newDepth - 1 - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha);
+			currentScore = -negamax(newDepth - 1 - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
 
 			if (currentScore > alpha && currentScore < beta) {
-				currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha);
+				currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 			}
 		}
 
@@ -232,7 +248,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 	start = chrono::high_resolution_clock::now();
 
 	for (chosenDepth = 1; chosenDepth < 64; chosenDepth++) {
-		int score = negamax(chosenDepth, 0, -999999, 999999);
+		int score = negamax(chosenDepth, 0, -999999, 999999, true);
 
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();

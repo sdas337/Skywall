@@ -201,6 +201,8 @@ public:
 			printf("ERROR, ERROR. ZOBRIST HASH DID NOT CHANGE AFTER A MOVE.\n");
 		}
 
+		newInfo.zobristHash ^= zobColor;
+
 		boardStates.push_back(newInfo);
 		currentPlayer = currentPlayer % 2 + 1;
 	}
@@ -270,9 +272,30 @@ public:
 		}
 
 		plyCount--;
-
 		currentPlayer = currentPlayer % 2 + 1;
 
+	}
+
+	void makeNullMove() {
+		BoardStateInformation newInfo = boardStates.back();
+
+		newInfo.zobristHash ^= zobColor;
+		newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
+
+		newInfo.capturedPieceType = 0;
+
+		boardStates.push_back(newInfo);
+
+		currentPlayer = currentPlayer % 2 + 1;
+		plyCount++;
+	}
+
+	void undoNullMove() {
+		BoardStateInformation formerStatus = boardStates.back();
+		boardStates.erase(boardStates.end() - 1);
+
+		currentPlayer = currentPlayer % 2 + 1;
+		plyCount--;
 	}
 
 	// Checking if we're in check 
