@@ -36,8 +36,10 @@ Board board;
 TTentry transpositionTable[TT_size];
 
 uint64_t historyTable[2][64][64];
-
 uint64_t maxHistory;
+
+Move killerMoves[1024];
+
 
 Move moveToPlay;
 int chosenDepth;
@@ -50,6 +52,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
 	bool qsearch = (depth <= 0);
+	bool inCheck = board.sideInCheck(board.currentPlayer);
+	bool pvNode = (beta - alpha > 1);
+
 	bool notRoot = plyFromRoot > 0;
 	int newDepth = depth - 1;
 	int historyIndex = plyFromRoot % 2;
@@ -66,7 +71,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 
 	if (!qsearch && allMoves.size() == 0) {
 		if (board.fiftyMoveCheck() || board.repeatedPositionCheck()) {
-			return -10;	// small contempt for draw
+			return 0;
 		}
 		return -900000 - depth;
 	}
@@ -79,6 +84,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 		}
 		alpha = max(alpha, score);
 	}
+	else if (!pvNode && !board.sideInCheck(board.currentPlayer)) {	// Pruning Technique Location
+
+	}
 
 
 	// Order moves portion
@@ -86,14 +94,22 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 	for (size_t i = 0; i < moveScores.size(); i++) {
 		int score = 0;
 
-		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m)
-			score = 1000000;
+		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {
+			score = 8000000;
+		}
+		else if (board.isCapture(allMoves[i])) {
+			//score = 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8 - board.rawBoard[allMoves[i].getStartSquare()] % 8);
 
-		if (board.isCapture(allMoves[i])) {
-			score += 500 * (board.rawBoard[allMoves[i].getEndSquare()] % 8 - board.rawBoard[allMoves[i].getStartSquare()] % 8);
+			// Debug later why incorrect mvv-lva isn't working
+			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
 		}
 		else {
-			score += historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
+			if (killerMoves[plyFromRoot] == allMoves[i]) {
+				score = 450000;
+			}
+			else {
+				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
+			}
 		}
 
 		moveScores[i] = score;
@@ -102,7 +118,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 	int bestScore = -999999, currentScore;
 	Move bestMove = Move(0,0,0);
 
-	// Check Extensions
 	//if (board.sideInCheck(board.currentPlayer))
 		//newDepth++;
 
@@ -126,17 +141,31 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 
 		Move move = allMoves[i];
 
+		bool importantMoves = (board.isCapture(move) || move.getFlag() > 1 && move.getFlag() < 6);
+
 		board.makeMove(move);
 
 		board.nodes++;
+		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
+		int extensions = 0, reductions = 0;
+
+		// Check Extensions
+		if (tmpCheckStatus)
+			extensions = 1;
+
+		// Late Move Reduction
+		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= 6 && depth > 2) {
+			reductions = 1;
+		}
 		
 		if (i == 0) {
-			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha);
+			currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha);
 		}
 		else {
-			currentScore = -negamax(newDepth-1, plyFromRoot + 1, -alpha - 1, -alpha);
+			currentScore = -negamax(newDepth - 1 - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha);
+
 			if (currentScore > alpha && currentScore < beta) {
-				currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha);
+				currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha);
 			}
 		}
 
@@ -154,6 +183,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta) {
 					//History and killer move location
 					historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] += depth * depth;
 					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
+
+					killerMoves[plyFromRoot] == move;
 				}
 				break;
 			}
