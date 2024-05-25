@@ -58,12 +58,14 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	bool notRoot = plyFromRoot > 0;
 	int historyIndex = plyFromRoot % 2;
 
+
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
 			(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
-			(currentEntry.flag == 1 && currentEntry.score <= alpha))	// upper bound, fail low
-			board.lookups++;
-			return currentEntry.score;
+			(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
+				board.lookups++;
+				return currentEntry.score;
+		}
 	}
 
 	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
@@ -78,32 +80,15 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	int eval = evaluate(board);
 
 	if (qsearch) {
-		int score = eval;
-
-		if (score >= beta) {
-			return score;
+		int bestScore = eval;
+		if (bestScore >= beta) {
+			return bestScore;
 		}
-		alpha = max(alpha, score);
+		alpha = max(alpha, bestScore);
 	}
 	else if (!pvNode && !board.sideInCheck(board.currentPlayer)) {	// Pruning Technique Location
-		/*int rfMargin = 80 + 110 * depth;
-		if (depth <= 5 && eval - rfMargin >= beta) {
-			return eval - rfMargin;
-		}
-
-		if (nullMovePruningAllowed && depth > 1) {	// Null Move Pruning
-			board.makeNullMove();
-			int nullMoveScore = negamax(depth - 3, plyFromRoot + 1, -beta, -alpha, false);
-			board.undoNullMove();
-
-			if (nullMoveScore > beta) {
-				return nullMoveScore;
-			}
-		}*/
+		
 	}
-
-	int newDepth = depth - 1;
-
 
 	// Order moves portion
 	vector<int> moveScores(allMoves.size());
@@ -114,9 +99,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score = 8000000;
 		}
 		else if (board.isCapture(allMoves[i])) {
-			//score = 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8 - board.rawBoard[allMoves[i].getStartSquare()] % 8);
-
-			// Debug later why incorrect mvv-lva isn't working
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
 		}
 		else {
@@ -131,11 +113,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		moveScores[i] = score;
 	}
 
-	int bestScore = -999999, currentScore;
 	Move bestMove = Move(0,0,0);
+	int newDepth = depth - 1, currentScore, origAlpha = alpha;
 
-	//if (board.sideInCheck(board.currentPlayer))
-		//newDepth++;
+	int bestScore = -999999;
+
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 
@@ -156,11 +138,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		Move move = allMoves[i];
-
 		bool importantMoves = (board.isCapture(move) || move.getFlag() > 1 && move.getFlag() < 6);
 
 		board.makeMove(move);
-
 		board.nodes++;
 		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
 		int extensions = 0, reductions = 0;
@@ -187,14 +167,18 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		board.undoMove(move);
 
+		// new best move
 		if (currentScore > bestScore) {
 			bestScore = currentScore;
 			bestMove = move;
 			if (!notRoot) {
 				moveToPlay = bestMove;
 			}
+
 			alpha = max(currentScore, alpha);
-			if (alpha >= beta) {
+
+
+			if (alpha >= beta) {	// Fail High
 				if (!qsearch && !board.isCapture(move)) {
 					//History and killer move location
 					historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] += depth * depth;
@@ -212,7 +196,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		boundType = 2;
 	}
 	else {
-		if (bestScore > alpha) {
+		if (bestScore > origAlpha) {
 			boundType = 4;
 		}
 		else {
@@ -238,7 +222,13 @@ Move searchBoard(Board &relevantBoard, int time) {
 			}
 		}
 	}
+	
+	for (int i = 0; i < 1024; i++) {
+		killerMoves[i].rawValue = 0;
+	}
+
 	maxHistory = 0ull;
+	moveToPlay.rawValue = 0;
 	
 	maxTimeForMove = time / 30;
 
@@ -264,5 +254,5 @@ Move searchBoard(Board &relevantBoard, int time) {
 		cout << board.nodes << "\n";
 	}
 
-	return moveToPlay;
+	return moveToPlay.rawValue == 0 ? board.generateLegalMovesV2(false)[0] : moveToPlay;
 }

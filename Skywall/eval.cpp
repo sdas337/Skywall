@@ -214,5 +214,7 @@ int evaluate(Board& board) {
     if (mgPhase > 24) mgPhase = 24; /* in case of early promotion */
     int egPhase = 24 - mgPhase;
 
-    return (mgScore * mgPhase + egScore * egPhase) / 24;
+    int finalScore = (mgScore * mgPhase + egScore * egPhase) / 24;
+
+    return finalScore;
 }
