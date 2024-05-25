@@ -35,11 +35,10 @@ Board board;
 
 TTentry transpositionTable[TT_size];
 
-uint64_t historyTable[2][64][64];
-uint64_t maxHistory;
+int historyTable[2][64][64];
+int maxHistory;
 
-Move killerMoves[1024];
-
+Move killerMoves[1024][2];
 
 Move moveToPlay;
 int chosenDepth;
@@ -58,6 +57,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	bool notRoot = plyFromRoot > 0;
 	int historyIndex = plyFromRoot % 2;
 
+	if (notRoot) {	// Draw check
+		if (board.fiftyMoveCheck() || board.repeatedPositionCheck()) {
+			return 0;
+		}
+	}
 
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
@@ -71,9 +75,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
 
 	if (!qsearch && allMoves.size() == 0) {
-		if (board.fiftyMoveCheck() || board.repeatedPositionCheck()) {
-			return 0;
-		}
 		return -900000 - depth;
 	}
 
@@ -102,7 +103,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
 		}
 		else {
-			if (killerMoves[plyFromRoot] == allMoves[i]) {
+			if (killerMoves[plyFromRoot][1] == allMoves[i]) {
 				score = 450000;
 			}
 			else {
@@ -115,19 +116,16 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	Move bestMove = Move(0,0,0);
 	int newDepth = depth - 1, currentScore, origAlpha = alpha;
-
 	int bestScore = -999999;
 
-
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
-
 		if (board.nodes & 4096 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
 		for (size_t j = i + 1; j < allMoves.size(); j++) {
 			if (moveScores[j] > moveScores[i]) {
-				uint64_t tmp = moveScores[j];
+				int tmp = moveScores[j];
 				moveScores[j] = moveScores[i];
 				moveScores[i] = tmp;
 
@@ -184,7 +182,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 					historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] += depth * depth;
 					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
 
-					killerMoves[plyFromRoot] == move;
+					//killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
+					killerMoves[plyFromRoot][1] == move;
 				}
 				break;
 			}
@@ -224,7 +223,8 @@ Move searchBoard(Board &relevantBoard, int time) {
 	}
 	
 	for (int i = 0; i < 1024; i++) {
-		killerMoves[i].rawValue = 0;
+		//killerMoves[i][0].rawValue = 0;
+		killerMoves[i][1].rawValue = 0;
 	}
 
 	maxHistory = 0ull;
