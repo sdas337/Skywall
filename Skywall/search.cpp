@@ -65,17 +65,19 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
-			(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
-			(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
-				board.lookups++;
-				return currentEntry.score;
+		(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
+		(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
+			board.lookups++;
+			return currentEntry.score;
 		}
 	}
 
 	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
 
 	if (!qsearch && allMoves.size() == 0) {
-		return -900000 - depth;
+		if(inCheck)
+			return -900000 - depth;
+		return 0;
 	}
 
 	int eval = evaluate(board);
@@ -103,7 +105,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
 		}
 		else {
-			if (killerMoves[plyFromRoot][1] == allMoves[i]) {
+			if (killerMoves[plyFromRoot][1] == allMoves[i]) {	//killerMoves[plyFromRoot][0] == allMoves[i] || 
 				score = 450000;
 			}
 			else {
@@ -119,7 +121,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	int bestScore = -999999;
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
-		if (board.nodes & 4096 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
+		// maybe this is slightly messing things up
+		if ((board.nodes & 4096) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
@@ -169,6 +172,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		if (currentScore > bestScore) {
 			bestScore = currentScore;
 			bestMove = move;
+
 			if (!notRoot) {
 				moveToPlay = bestMove;
 			}
@@ -180,6 +184,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 				if (!qsearch && !board.isCapture(move)) {
 					//History and killer move location
 					historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] += depth * depth;
+
 					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
 
 					//killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
@@ -232,7 +237,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 	
 	maxTimeForMove = time / 30;
 
-	cout << "Time\t\tDepth\t\tBest Move\tMax History\tLookups\t\tTT Entries\tNodes\n";
+	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
@@ -248,6 +253,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 		cout << duration << " ms\t\t";
 		cout << chosenDepth << "\t\t";
 		cout << moveToPlay.printMove() << " \t\t";
+		cout << score << "\t\t";
 		cout << maxHistory << "\t\t";
 		cout << board.lookups << "\t\t";
 		cout << board.ttEntries << "\t\t";
