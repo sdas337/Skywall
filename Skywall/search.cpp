@@ -47,6 +47,7 @@ int maxTimeForMove = 0;
 
 
 int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed) {
+
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
@@ -56,9 +57,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	bool notRoot = plyFromRoot > 0;
 	int historyIndex = plyFromRoot % 2;
+	int bestScore = -999999;
 
-	if (notRoot) {	// Draw check
-		if (board.fiftyMoveCheck() || board.repeatedPositionCheck()) {
+
+	if (notRoot) {	// Draw check for repeated position. Other one doesn't quite matter
+		if (board.repeatedPositionCheck()) {
 			return 0;
 		}
 	}
@@ -72,18 +75,10 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
-
-	if (!qsearch && allMoves.size() == 0) {
-		if(inCheck)
-			return -900000 - depth;
-		return 0;
-	}
-
 	int eval = evaluate(board);
 
 	if (qsearch) {
-		int bestScore = eval;
+		bestScore = eval;
 		if (bestScore >= beta) {
 			return bestScore;
 		}
@@ -91,6 +86,14 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 	else if (!pvNode && !board.sideInCheck(board.currentPlayer)) {	// Pruning Technique Location
 		
+	}
+
+	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
+
+	if (!qsearch && allMoves.size() == 0) {
+		if (inCheck)
+			return -900000 - depth;
+		return 0;
 	}
 
 	// Order moves portion
@@ -105,7 +108,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
 		}
 		else {
-			if (killerMoves[plyFromRoot][1] == allMoves[i]) {	//killerMoves[plyFromRoot][0] == allMoves[i] || 
+			if (killerMoves[plyFromRoot][1] == allMoves[i] || killerMoves[plyFromRoot][0] == allMoves[i]) {
 				score = 450000;
 			}
 			else {
@@ -118,7 +121,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	Move bestMove = Move(0,0,0);
 	int newDepth = depth - 1, currentScore, origAlpha = alpha;
-	int bestScore = -999999;
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		// maybe this is slightly messing things up
@@ -187,7 +189,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
 
-					//killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
+					killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
 					killerMoves[plyFromRoot][1] == move;
 				}
 				break;
@@ -228,7 +230,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 	}
 	
 	for (int i = 0; i < 1024; i++) {
-		//killerMoves[i][0].rawValue = 0;
+		killerMoves[i][0].rawValue = 0;
 		killerMoves[i][1].rawValue = 0;
 	}
 
