@@ -38,12 +38,15 @@ TTentry transpositionTable[TT_size];
 int historyTable[2][64][64];
 int maxHistory;
 
+
 Move killerMoves[1024][2];
 
 Move moveToPlay;
 int chosenDepth;
 
 int maxTimeForMove = 0;
+int maxEval;
+
 
 
 int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed) {
@@ -51,17 +54,18 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
-	bool qsearch = (depth <= 0);
+	bool qsearch = depth <= 0;
+	bool notRoot = plyFromRoot > 0;
+
 	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool pvNode = (beta - alpha > 1);
 
-	bool notRoot = plyFromRoot > 0;
 	int historyIndex = plyFromRoot % 2;
 	int bestScore = -999999;
 
 
-	if (notRoot) {	// Draw check for repeated position. Other one doesn't quite matter
-		if (board.repeatedPositionCheck()) {
+	if (notRoot) {
+		if (board.repeatedPositionCheck() || board.fiftyMoveCheck()) {
 			return 0;
 		}
 	}
@@ -76,6 +80,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 
 	int eval = evaluate(board);
+	maxEval = max(eval, maxEval);
 
 	if (qsearch) {
 		bestScore = eval;
@@ -84,7 +89,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 		alpha = max(alpha, bestScore);
 	}
-	else if (!pvNode && !board.sideInCheck(board.currentPlayer)) {	// Pruning Technique Location
+	else if (!pvNode && !inCheck) {	// Pruning Technique Location
 		
 	}
 
@@ -123,8 +128,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	int newDepth = depth - 1, currentScore, origAlpha = alpha;
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
-		// maybe this is slightly messing things up
-		if ((board.nodes & 4096) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
+		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
@@ -214,7 +218,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		board.ttEntries++;
 	}
 
-	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, alpha, depth, boundType);
+	if (abs(alpha) != 900000) {
+		transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, alpha, depth, boundType);
+	}
 
 	return alpha;
 }
@@ -235,6 +241,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 	}
 
 	maxHistory = 0ull;
+	maxEval = 0;
 	moveToPlay.rawValue = 0;
 	
 	maxTimeForMove = time / 30;
