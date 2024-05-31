@@ -58,7 +58,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	bool notRoot = plyFromRoot > 0;
 
 	bool inCheck = board.sideInCheck(board.currentPlayer);
-	bool pvNode = (beta - alpha > 1);
+	bool pvNode = (beta - alpha) > 1;
 
 	int historyIndex = plyFromRoot % 2;
 	int bestScore = -999999;
@@ -70,7 +70,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	if (currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
+	if (!pvNode && currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
 		(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
 		(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
@@ -97,7 +97,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	if (!qsearch && allMoves.size() == 0) {
 		if (inCheck)
-			return -900000 - depth;
+			return -900000 + plyFromRoot;
 		return 0;
 	}
 
