@@ -14,6 +14,8 @@ struct BoardStateInformation {
 	int fiftyMoveCount;
 	int capturedPieceType;
 	uint64_t zobristHash;
+	uint64_t occupiedBoard[2];
+	uint64_t pieceBoards[6];
 };
 
 class Board {
@@ -26,36 +28,34 @@ public:
 	uint64_t ttEntries = 0;
 
 	int plyCount;
-	int currentPlayer;
+	int currentPlayer;		// Changing so that 0 is white, 1 is black
 
-	uint64_t occupiedBoard[3];
-	uint64_t pieceBoards[8];
-
-	int kingLocations[3];
-	uint64_t attackingSquares[3];
+	int kingLocations[2];
+	uint64_t attackingSquares[2];
 
 	vector<BoardStateInformation> boardStates;
 
 	// no piece  = 0, king = 1, pawn = 2, knight = 3, bishop = 4, rook = 5, queen = 6, white = 8, black = 16
 	void setPiece(int row, int col, int piece) {
 		int square = 8 * row + col;
+
 		rawBoard[square] = piece;
-		occupiedBoard[piece / 8] |= (1ull) << square;
-		pieceBoards[piece % 8] |= (1ull) << square;
+		boardStates.back().occupiedBoard[piece / 8 - 1] |= (1ull) << square;
+		boardStates.back().pieceBoards[piece % 8 - 1] |= (1ull) << square;
 	}
 
 	void removePiece(int row, int col) {
 		int square = 8 * row + col;
-		occupiedBoard[1] &= ~(1ull << square);
-		occupiedBoard[2] &= ~(1ull << square);
+		boardStates.back().occupiedBoard[0] &= ~(1ull << square);
+		boardStates.back().occupiedBoard[1] &= ~(1ull << square);
 		rawBoard[square] = 0;
 
-		for(int i = 1; i < 7; i++)
-			pieceBoards[i] &= ~((1ull) << square);
+		for(int i = 0; i < 6; i++)
+			boardStates.back().pieceBoards[i] &= ~((1ull) << square);
 	}
 
 	bool isWhitePiece(int row, int col) {
-		return occupiedBoard[1] & (1ull << (8 * row + col));
+		return boardStates.back().occupiedBoard[0] & (1ull << (8 * row + col));
 	}
 
 	bool fiftyMoveCheck() {
@@ -79,7 +79,7 @@ public:
 		int pieceRemovalSquare = move.getEndSquare();
 		int flags = move.getFlag();
 		if (flags == 1 || flags == 7) {
-			pieceRemovalSquare += (currentPlayer == 1 ? -8 : 8);
+			pieceRemovalSquare += (currentPlayer == 0 ? -8 : 8);
 		}
 
 		return rawBoard[pieceRemovalSquare] != 0;
@@ -93,9 +93,8 @@ public:
 		int pieceRemovalSquare = targetSquare;
 		int flags = move.getFlag();
 		if (flags == 1 || flags == 7) {
-			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? -8 : 8);
+			pieceRemovalSquare = targetSquare + (currentPlayer == 0 ? -8 : 8);
 		}
-
 		bool capturedPiece = rawBoard[pieceRemovalSquare] != 0;
 
 		// Actual chess move
@@ -106,13 +105,16 @@ public:
 		rawBoard[pieceRemovalSquare] = 0;
 		rawBoard[targetSquare] = movingPiece;
 
-		occupiedBoard[movingPiece / 8] &= ~(1ull << startSquare);
-		occupiedBoard[movingPiece / 8] |= (1ull << targetSquare);
-		occupiedBoard[(movingPiece / 8 % 2) + 1] &= ~(1ull << pieceRemovalSquare);
+		newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << startSquare);
+		newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << targetSquare);
+		newInfo.occupiedBoard[(movingPiece / 8) % 2] &= ~(1ull << pieceRemovalSquare);
 
-		pieceBoards[movingPiece % 8] &= ~(1ull << startSquare);
-		pieceBoards[newInfo.capturedPieceType % 8] &= ~(1ull << pieceRemovalSquare);
-		pieceBoards[movingPiece % 8] |= (1ull << targetSquare);
+		newInfo.pieceBoards[movingPiece % 8 - 1] &= ~(1ull << startSquare);
+		if (capturedPiece) {
+			newInfo.pieceBoards[newInfo.capturedPieceType % 8 - 1] &= ~(1ull << pieceRemovalSquare);
+		}
+		newInfo.pieceBoards[movingPiece % 8 - 1] |= (1ull << targetSquare);
+
 
 		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][startSquare];
 		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][targetSquare];
@@ -138,36 +140,36 @@ public:
 				rawBoard[(targetSquare / 8) * 8 + 5] = rawBoard[(targetSquare / 8) * 8 + 7];
 				rawBoard[(targetSquare / 8) * 8 + 7] = 0;
 
-				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
-				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 5));
+				newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
+				newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 5));
 
-				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
-				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 5));
+				newInfo.pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
+				newInfo.pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 5));
 			} else {
 				rawBoard[(targetSquare / 8) * 8 + 3] = rawBoard[(targetSquare / 8) * 8];
 				rawBoard[(targetSquare / 8) * 8] = 0;
 
-				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8));
-				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 3));
+				newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8));
+				newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 3));
 
-				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8));
-				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 3));
+				newInfo.pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8));
+				newInfo.pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 3));
 			}
 
 			// Remove castling rights for that side
-			newInfo.castlingRights[2 * currentPlayer - 2] = false;
-			newInfo.castlingRights[2 * currentPlayer - 1] = false;
+			newInfo.castlingRights[2 * currentPlayer] = false;
+			newInfo.castlingRights[2 * currentPlayer + 1] = false;
 
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
+			newInfo.zobristHash ^= zobCastle[2 * currentPlayer];
+			newInfo.zobristHash ^= zobCastle[2 * currentPlayer + 1];
 		}
 
 		// Handle promotion
 		else if (flags > 1 && flags < 6) {
-			rawBoard[targetSquare] = (currentPlayer * 8) | (flags + 1);
+			rawBoard[targetSquare] = (8 + currentPlayer * 8) | (flags + 1);
 
-			pieceBoards[2] &= ~(1ull << targetSquare);
-			pieceBoards[flags + 1] |= (1ull << targetSquare);
+			newInfo.pieceBoards[1] &= ~(1ull << targetSquare);
+			newInfo.pieceBoards[flags] |= (1ull << targetSquare);
 
 			newInfo.zobristHash ^= zobPieces[currentPlayer][2][targetSquare];
 			newInfo.zobristHash ^= zobPieces[currentPlayer][flags + 1][targetSquare];
@@ -175,23 +177,23 @@ public:
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
-			newInfo.castlingRights[2 * currentPlayer - 2] = false;
-			newInfo.castlingRights[2 * currentPlayer - 1] = false;
+			newInfo.castlingRights[2 * currentPlayer] = false;
+			newInfo.castlingRights[2 * currentPlayer + 1] = false;
 
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
+			newInfo.zobristHash ^= zobCastle[2 * currentPlayer];
+			newInfo.zobristHash ^= zobCastle[2 * currentPlayer + 1];
 
 			kingLocations[currentPlayer] = targetSquare;
 		}
 
 		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
-				newInfo.castlingRights[2 * currentPlayer - 2] = false;
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
+				newInfo.castlingRights[2 * currentPlayer] = false;
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer];
 			}
 			else {
-				newInfo.castlingRights[2 * currentPlayer - 1] = false;
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
+				newInfo.castlingRights[2 * currentPlayer + 1] = false;
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer + 1];
 			}
 		}
 
@@ -204,7 +206,7 @@ public:
 		newInfo.zobristHash ^= zobColor;
 
 		boardStates.push_back(newInfo);
-		currentPlayer = currentPlayer % 2 + 1;
+		currentPlayer = (currentPlayer + 1) % 2;
 	}
 
 	void undoMove(Move move) {
@@ -217,7 +219,7 @@ public:
 		boardStates.erase(boardStates.end()-1);
 
 		if (flags == 1) {
-			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? 8 : -8);
+			pieceRemovalSquare = targetSquare + (currentPlayer == 0 ? 8 : -8);
 		}
 
 		int movingPiece = rawBoard[targetSquare];
@@ -226,53 +228,53 @@ public:
 		rawBoard[targetSquare] = 0;
 		rawBoard[pieceRemovalSquare] = formerStatus.capturedPieceType;
 
-		occupiedBoard[movingPiece / 8] &= ~(1ull << targetSquare);
-		occupiedBoard[movingPiece / 8] |= (1ull << startSquare);
+		/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << targetSquare);
+		occupiedBoard[movingPiece / 8 - 1] |= (1ull << startSquare);
 
-		pieceBoards[movingPiece % 8] &= ~(1ull << targetSquare);
-		pieceBoards[movingPiece % 8] |= (1ull << startSquare);
+		pieceBoards[movingPiece % 8 - 1] &= ~(1ull << targetSquare);
+		pieceBoards[movingPiece % 8 - 1] |= (1ull << startSquare);
 		
 		if (formerStatus.capturedPieceType) {
-			occupiedBoard[(movingPiece / 8 % 2) + 1] |= (1ull << pieceRemovalSquare);
-			pieceBoards[formerStatus.capturedPieceType % 8] |= (1ull << pieceRemovalSquare);
-		}
+			occupiedBoard[(movingPiece / 8) % 2] |= (1ull << pieceRemovalSquare);
+			pieceBoards[formerStatus.capturedPieceType % 8 - 1] |= (1ull << pieceRemovalSquare);
+		}*/
 
 		if (flags == 6) {
 			if (targetSquare % 8 > 3) {	// Queenside vs Kingside
 				rawBoard[(targetSquare / 8) * 8 + 7] = rawBoard[(targetSquare / 8) * 8 + 5];
 				rawBoard[(targetSquare / 8) * 8 + 5] = 0;
 
-				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
-				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 7));
+				/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
+				occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 7));
 
-				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 7));
-				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
+				pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 7));
+				pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 5));*/
 
 			} else {
 				rawBoard[(targetSquare / 8) * 8] = rawBoard[(targetSquare / 8) * 8 + 3];
 				rawBoard[(targetSquare / 8) * 8 + 3] = 0;
 
-				occupiedBoard[movingPiece / 8] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
-				occupiedBoard[movingPiece / 8] |= (1ull << ((targetSquare / 8) * 8 + 0));
+				/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
+				occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 0));
 
-				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8));
-				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
+				pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8));
+				pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 3));*/
 			}
 		}
 		else if (flags > 1 && flags < 6) {	// Reset to pawn
-			rawBoard[startSquare] = ((currentPlayer % 2 + 1) * 8) | 2;
+			rawBoard[startSquare] = (8 + (currentPlayer + 1) % 2 * 8) | 2;
 
-			pieceBoards[2] |= (1ull << startSquare);	// Fixing incorrect move that occurred earlier
-			pieceBoards[flags + 1] &= ~(1ull << startSquare);
+			/*pieceBoards[1] |= (1ull << startSquare);	// Fixing incorrect move that occurred earlier
+			pieceBoards[flags] &= ~(1ull << startSquare);*/
 		}
 
 		// King location check
 		if ((rawBoard[startSquare] & 7) == 1) {	// King check
-			kingLocations[(currentPlayer % 2) + 1] = startSquare;
+			kingLocations[(currentPlayer + 1) % 2] = startSquare;
 		}
 
 		plyCount--;
-		currentPlayer = currentPlayer % 2 + 1;
+		currentPlayer = (currentPlayer + 1) % 2;
 
 	}
 
@@ -286,7 +288,7 @@ public:
 
 		boardStates.push_back(newInfo);
 
-		currentPlayer = currentPlayer % 2 + 1;
+		currentPlayer = (currentPlayer + 1) % 2;
 		plyCount++;
 	}
 
@@ -294,37 +296,38 @@ public:
 		BoardStateInformation formerStatus = boardStates.back();
 		boardStates.erase(boardStates.end() - 1);
 
-		currentPlayer = currentPlayer % 2 + 1;
+		currentPlayer = (currentPlayer + 1) % 2;
 		plyCount--;
 	}
 
 	// Checking if we're in check 
 	bool sideInCheck(int player) {
-		int otherPlayer = player % 2 + 1;
+		BoardStateInformation currentStatus = boardStates.back();
+		int otherPlayer = (player + 1) % 2;
 
 		// perform several partial move gens beginning from other player's king location
 		uint64_t knightMoves = generateKnightMoves(kingLocations[player], player);
-		if (knightMoves & occupiedBoard[otherPlayer] & pieceBoards[3]) {
+		if (knightMoves & currentStatus.occupiedBoard[otherPlayer] & currentStatus.pieceBoards[2]) {
 			return true;
 		}
 
 		uint64_t bishopMoves = generateBishopMoves(kingLocations[player], player);
-		if (bishopMoves & occupiedBoard[otherPlayer] & (pieceBoards[4] | pieceBoards[6])) {
+		if (bishopMoves & currentStatus.occupiedBoard[otherPlayer] & (currentStatus.pieceBoards[3] | currentStatus.pieceBoards[5])) {
 			return true;
 		}
 		
 		uint64_t rookMoves = generateRookMoves(kingLocations[player], player);
-		if (rookMoves & occupiedBoard[otherPlayer] & (pieceBoards[5] | pieceBoards[6])) {
+		if (rookMoves & currentStatus.occupiedBoard[otherPlayer] & (currentStatus.pieceBoards[4] | currentStatus.pieceBoards[5])) {
 			return true;
 		}
 
 		// Pawn positions
 		int direction;
-		if (otherPlayer == 1) {
-			direction = -8;
-		}
-		else {
+		if (otherPlayer == 1) {		// If I'm checking that white is in check from a pawn
 			direction = 8;
+		}
+		else {	// If I'm checking that black is in check from a pawn
+			direction = -8;
 		}
 
 		for (int i = direction - 1; i < direction + 2; i += 2) {
@@ -333,8 +336,7 @@ public:
 				continue;
 			if (abs(targetSquare / 8 - kingLocations[player] / 8) != 1)
 				continue;
-			//if (rawBoard[targetSquare] == (otherPlayer * 8 | 2)) {
-			if( (occupiedBoard[otherPlayer] & (pieceBoards[2]) & (1ull << targetSquare)) ) {
+			if( (currentStatus.occupiedBoard[otherPlayer] & currentStatus.pieceBoards[1] & (1ull << targetSquare)) ) {
 				return true;
 			}
 		}
@@ -381,7 +383,7 @@ public:
 
 	void printBoard() {
 		//ofstream file("../../../testFiles/boardStates.txt");
-
+		BoardStateInformation currentStatus = boardStates.back();
 		int toPrintBoard[64];
 
 		for (int i = 0; i < 64; i++) {
@@ -390,7 +392,7 @@ public:
 
 		for (int i = 1; i < 7; i++) {
 			for (int color = 1; color <= 2; color++) {
-				uint64_t currentPieceTypeBitboard = pieceBoards[i] & occupiedBoard[color];
+				uint64_t currentPieceTypeBitboard = currentStatus.pieceBoards[i - 1] & currentStatus.occupiedBoard[color - 1];
 				while (currentPieceTypeBitboard != 0) {
 					int targetSquare = popLSB(currentPieceTypeBitboard);
 					toPrintBoard[targetSquare] = (8 * color) + i;
@@ -440,7 +442,7 @@ public:
 				case 'k':
 					removePiece(row, col);
 					setPiece(row, col, 17);
-					kingLocations[2] = 8 * row + col;
+					kingLocations[1] = 8 * row + col;
 					break;
 				case 'p':
 					removePiece(row, col);
@@ -465,7 +467,7 @@ public:
 				case 'K':
 					removePiece(row, col);
 					setPiece(row, col, 9);
-					kingLocations[1] = 8 * row + col;
+					kingLocations[0] = 8 * row + col;
 					break;
 				case 'P':
 					removePiece(row, col);
@@ -510,7 +512,7 @@ public:
 		remainder = remainder.substr(1);
 		current = remainder.substr(0, remainder.find(" "));
 		remainder = remainder.substr(remainder.find(" "));
-		currentPlayer = (current[0] == 'w') ? 1 : 2;
+		currentPlayer = (current[0] == 'w') ? 0 : 1;
 
 		fenIndex = 0;	// Castling
 		remainder = remainder.substr(1);
@@ -542,9 +544,9 @@ public:
 		current = remainder.substr(0, remainder.find(" "));
 		remainder = remainder.substr(remainder.find(" "));
 		fiftyMoveCount = stoi(current);	
-		plyCount = stoi(remainder) * 2 + currentPlayer % 2;
+		plyCount = stoi(remainder) * 2 + (currentPlayer + 1) % 2;
 
-		BoardStateInformation tmp;
+		BoardStateInformation tmp = boardStates.back();
 		tmp.enPassantSquare = enPassantSquare;
 		tmp.castlingRights[0] = castlingRights[0];
 		tmp.castlingRights[1] = castlingRights[1];
@@ -555,24 +557,32 @@ public:
 		tmp.zobristHash = 0ull;
 
 		//Manually calculate zobristHash
-		boardStates.push_back(tmp);
+		boardStates[0] = tmp;
 
 		calculateZobristHash();
 
+		generateAttacksV2(0);
 		generateAttacksV2(1);
-		generateAttacksV2(2);
 	}
 
 	Board() {
+		BoardStateInformation tmp;
+		tmp.enPassantSquare = 0;
+		tmp.castlingRights[0] = true;
+		tmp.castlingRights[1] = true;
+		tmp.castlingRights[2] = true;
+		tmp.castlingRights[3] = true;
+		tmp.fiftyMoveCount = 0;
+		tmp.capturedPieceType = 0;
+		tmp.zobristHash = 0ull;
+
+		boardStates.push_back(tmp);
+
 		examinedMovesDuringCheck.resize(15);
 		for (int i = 0; i < 8; i++) {	// Row
 			for (int j = 0; j < 8; j++) {	// Col
 				setPiece(i, j, 0);
 			}
-		}
-
-		for (int i = 0; i < 7; i++) {
-			pieceBoards[i] = 0ull;
 		}
 
 		precomputeDistances();
@@ -595,6 +605,7 @@ public:
 		int moveIndex = 0;
 
 		for (uint8_t i = 0; i < moveCount; i++) {
+			
 			Move move = allMoves[i];
 
 			if (onlyCaptures && !isCapture(move)) {
@@ -604,7 +615,7 @@ public:
 			bool moveStatus = true;
 			makeMove(move);
 			moveStatus = sideInCheck(origCurrentPlayer);
-			int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
+			int kingDistance = max(abs(kingLocations[0] / 8 - kingLocations[1] / 8), abs(kingLocations[0] % 8 - kingLocations[1] % 8));
 			undoMove(move);
 
 			if (!moveStatus) {
@@ -641,7 +652,7 @@ private:
 
 		zobColor = distro(generator);
 
-		for (int k = 1; k < 3; k++) {
+		for (int k = 0; k < 2; k++) {
 			for (int i = 0; i < 7; i++) {
 				for (int j = 0; j < 64; j++) {
 					zobPieces[k][i][j] = distro(generator);
@@ -659,12 +670,14 @@ private:
 
 	void calculateZobristHash() {
 		uint64_t rawHash = 0ull;
-		for (int wantedPlayer = 1; wantedPlayer < 3; wantedPlayer++) {
-			uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
-			uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
-			uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
-			uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
-			uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
+		BoardStateInformation currentState = boardStates.back();
+
+		for (int wantedPlayer = 0; wantedPlayer < 2; wantedPlayer++) {
+			uint64_t pawnBoard = currentState.occupiedBoard[wantedPlayer] & currentState.pieceBoards[1];
+			uint64_t knightBoard = currentState.occupiedBoard[wantedPlayer] & currentState.pieceBoards[2];
+			uint64_t bishopBoard = currentState.occupiedBoard[wantedPlayer] & currentState.pieceBoards[3];
+			uint64_t rookBoard = currentState.occupiedBoard[wantedPlayer] & currentState.pieceBoards[4];
+			uint64_t queenBoard = currentState.occupiedBoard[wantedPlayer] & currentState.pieceBoards[5];
 
 			rawHash ^= zobPieces[wantedPlayer][1][kingLocations[wantedPlayer]];
 
@@ -694,7 +707,7 @@ private:
 			}
 		}
 
-		if (currentPlayer == 2) {
+		if (currentPlayer == 1) {
 			rawHash ^= zobColor;
 		}
 
@@ -760,31 +773,31 @@ private:
 		// precomputing valid white pawn move masks
 		for (int row = 1; row < 7; row++) {
 			int square = row * 8;
-			validPawnMoveMasks[square][1] = 3ull << (square + 8);
+			validPawnMoveMasks[square][0] = 3ull << (square + 8);
 
 			for (int col = 1; col < 7; col++) {
 				square = row * 8 + col;
-				validPawnMoveMasks[square][1] = 7ull << (square + 7);
+				validPawnMoveMasks[square][0] = 7ull << (square + 7);
 			}
 
 			square = row * 8 + 7;
-			validPawnMoveMasks[square][1] = 3ull << (square + 7);
+			validPawnMoveMasks[square][0] = 3ull << (square + 7);
 		}
 
 		// precomputing valid black pawn move masks
 		for (int row = 6; row > 0; row--) {
 			int square = row * 8;
-			validPawnMoveMasks[square][2] = 3ull << (square - 8);
+			validPawnMoveMasks[square][1] = 3ull << (square - 8);
 			//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
 
 			for (int col = 1; col < 7; col++) {
 				square = row * 8 + col;
-				validPawnMoveMasks[square][2] = 7ull << (square - 9);
+				validPawnMoveMasks[square][1] = 7ull << (square - 9);
 				//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
 			}
 
 			square = row * 8 + 7;
-			validPawnMoveMasks[square][2] = 3ull << (square - 9);
+			validPawnMoveMasks[square][1] = 3ull << (square - 9);
 			//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
 		}
 
@@ -792,8 +805,9 @@ private:
 
 	int generateKingMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
+		BoardStateInformation currentState = boardStates.back();
 
-		uint64_t kingMoveBitboard = validKingMoves[square] & ~occupiedBoard[wantedPlayer];
+		uint64_t kingMoveBitboard = validKingMoves[square] & ~currentState.occupiedBoard[wantedPlayer];
 
 		while (kingMoveBitboard != 0) {
 			int targetSquare = popLSB(kingMoveBitboard);
@@ -802,12 +816,12 @@ private:
 			movesGenerated++;
 		}
 
-		int otherPlayer = wantedPlayer % 2 + 1;
+		int otherPlayer = (wantedPlayer + 1) % 2;
 		
-		if (boardStates.back().castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
+		if (boardStates.back().castlingRights[wantedPlayer * 2]) {	// King side castling right exists
 			// Occupancy check
-			uint64_t relevantRowMask = 0x6060606060606060 & (0xffull << (56 * wantedPlayer - 56));
-			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
+			uint64_t relevantRowMask = 0x6060606060606060 & (0xffull << (56 * wantedPlayer));
+			uint64_t emptyArea = relevantRowMask & (currentState.occupiedBoard[0] | currentState.occupiedBoard[1]);	//
 			if (emptyArea == 0ull) {
 				// Check that no enemy pieces are attacking there
 				uint64_t areaWithoutAttacksMask = (relevantRowMask | (1ull << square));
@@ -815,7 +829,7 @@ private:
 
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
 				if (area == 0ull) {
-					if(pieceBoards[5] & occupiedBoard[wantedPlayer] & (1ull << ((56 * wantedPlayer - 56) + 7))) { // Check the rook still exists
+					if(currentState.pieceBoards[4] & currentState.occupiedBoard[wantedPlayer] & (1ull << ((56 * wantedPlayer) + 7))) { // Check the rook still exists
 						moves[insertionIndex] = Move(square, square + 2, 6);
 						insertionIndex++;
 						movesGenerated++;
@@ -823,10 +837,10 @@ private:
 				}
 			}
 		}
-		if (boardStates.back().castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
+		if (boardStates.back().castlingRights[wantedPlayer * 2 + 1]) {	// Queen side castling right exists
 			// Occupancy check
-			uint64_t relevantRowMask = 0x0e0e0e0e0e0e0e0e & (0xffull << (56 * wantedPlayer - 56));
-			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
+			uint64_t relevantRowMask = 0x0e0e0e0e0e0e0e0e & (0xffull << (56 * wantedPlayer));
+			uint64_t emptyArea = relevantRowMask & (currentState.occupiedBoard[0] | currentState.occupiedBoard[1]);	//
 			if (emptyArea == 0ull) {
 				// Check that no enemy pieces are attacking there
 				uint64_t areaWithoutAttacksMask = relevantRowMask & ~(1ull << (square - 3)) | (1ull << square);
@@ -834,7 +848,7 @@ private:
 
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
 				if (area == 0ull) {
-					if (pieceBoards[5] & occupiedBoard[wantedPlayer] & (1ull << (56 * wantedPlayer - 56))) { // Check the rook still exists
+					if (currentState.pieceBoards[4] & currentState.occupiedBoard[wantedPlayer] & (1ull << (56 * wantedPlayer))) { // Check the rook still exists
 						moves[insertionIndex] = Move(square, square - 2, 6);
 						insertionIndex++;
 						movesGenerated++;
@@ -847,8 +861,10 @@ private:
 	}
 
 	uint64_t generatePawnCaptures(int square, int wantedPlayer) {
-		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
-		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
+		BoardStateInformation currentState = boardStates.back();
+
+		uint64_t otherOccupiedBoard = currentState.occupiedBoard[(wantedPlayer + 1) % 2];
+		uint64_t totalOccupiedBoard = currentState.occupiedBoard[wantedPlayer] | otherOccupiedBoard;
 
 		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
 		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
@@ -867,14 +883,16 @@ private:
 
 	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
-		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
-		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
+		BoardStateInformation currentState = boardStates.back();
+
+		uint64_t otherOccupiedBoard = currentState.occupiedBoard[(wantedPlayer + 1) % 2];
+		uint64_t totalOccupiedBoard = currentState.occupiedBoard[wantedPlayer] | otherOccupiedBoard;
 
 		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
 		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
 		uint64_t unblockedLocationsMask = 0xffull << (square / 8 * 8);
 
-		if (wantedPlayer == 1) {
+		if (wantedPlayer == 0) {
 			unblockedLocationsMask = unblockedLocationsMask << 8;
 		}
 		else {
@@ -884,7 +902,7 @@ private:
 		uint64_t validForwardPawnMoves = (currentPawnMask & currentFileMask) & ~(totalOccupiedBoard) & unblockedLocationsMask;
 
 		if (validForwardPawnMoves != 0) {
-			if (square / 8 == 1 && wantedPlayer == 1) {
+			if (square / 8 == 1 && wantedPlayer == 0) {
 				int targetSquare = square + 16;
 				if((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
 					moves[insertionIndex] = Move(square, targetSquare, 7);
@@ -892,7 +910,7 @@ private:
 					movesGenerated++;
 				}
 			}
-			else if (square / 8 == 6 && wantedPlayer == 2) {
+			else if (square / 8 == 6 && wantedPlayer == 1) {
 				int targetSquare = square - 16;
 				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
 					moves[insertionIndex] = Move(square, targetSquare, 7);
@@ -931,8 +949,10 @@ private:
 	}
 	
 	uint64_t generateRookMoves(int square, int safePlayer) {
+		BoardStateInformation currentState = boardStates.back();
+
 		uint64_t slidingMoveBitboard = 0ull;
-		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
+		uint64_t blockerBitboard = currentState.occupiedBoard[0] | currentState.occupiedBoard[1];
 
 		uint64_t relevantBlockers = blockerBitboard | refinedRookMagics[square].negMask;
 		uint64_t hash = relevantBlockers * refinedRookMagics[square].blackMagic;
@@ -944,14 +964,16 @@ private:
 		}
 		slidingMoveBitboard = lookup_table[tableIndex];
 
-		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
+		slidingMoveBitboard &= ~currentState.occupiedBoard[safePlayer];
 
 		return slidingMoveBitboard;
 	}
 
 	uint64_t generateBishopMoves(int square, int safePlayer) {
+		BoardStateInformation currentState = boardStates.back();
+
 		uint64_t slidingMoveBitboard = 0ull;
-		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
+		uint64_t blockerBitboard = currentState.occupiedBoard[0] | currentState.occupiedBoard[1];
 
 		uint64_t relevantBlockers = blockerBitboard | refinedBishopMagics[square].negMask;
 		uint64_t hash = relevantBlockers * refinedBishopMagics[square].blackMagic;
@@ -963,7 +985,7 @@ private:
 		}
 		slidingMoveBitboard = lookup_table[tableIndex];
 
-		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
+		slidingMoveBitboard &= ~currentState.occupiedBoard[safePlayer];
 
 		return slidingMoveBitboard;
 	}
@@ -971,19 +993,21 @@ private:
 	uint64_t generateKnightMoves(int square, int safePlayer) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
 
-		return legalMoveBoard & ~occupiedBoard[safePlayer];
+		return legalMoveBoard & ~boardStates.back().occupiedBoard[safePlayer];
 	}
 
 	int generatePseudoLegalMovesV3(vector<Move>& listOfMoves, int wantedPlayer) {
 		int insertionIndex = 0;
-		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
+		BoardStateInformation currentState = boardStates.back();
 
-		uint64_t kingBoard = relevantOccupiedBoard & pieceBoards[1];
-		uint64_t pawnBoard = relevantOccupiedBoard & pieceBoards[2];
-		uint64_t knightBoard = relevantOccupiedBoard & pieceBoards[3];
-		uint64_t bishopBoard = relevantOccupiedBoard & pieceBoards[4];
-		uint64_t rookBoard = relevantOccupiedBoard & pieceBoards[5];
-		uint64_t queenBoard = relevantOccupiedBoard & pieceBoards[6];
+		uint64_t relevantOccupiedBoard = currentState.occupiedBoard[wantedPlayer];
+
+		uint64_t kingBoard = relevantOccupiedBoard & currentState.pieceBoards[0];
+		uint64_t pawnBoard = relevantOccupiedBoard & currentState.pieceBoards[1];
+		uint64_t knightBoard = relevantOccupiedBoard & currentState.pieceBoards[2];
+		uint64_t bishopBoard = relevantOccupiedBoard & currentState.pieceBoards[3];
+		uint64_t rookBoard = relevantOccupiedBoard & currentState.pieceBoards[4];
+		uint64_t queenBoard = relevantOccupiedBoard & currentState.pieceBoards[5];
 
 		insertionIndex += generateKingMovesV2(popLSB(kingBoard), listOfMoves, insertionIndex, wantedPlayer);
 
@@ -1043,11 +1067,15 @@ private:
 	}
 	
 	void generateAttacksV2(int wantedPlayer) {
-		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
-		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
-		uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
-		uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
-		uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
+		BoardStateInformation currentState = boardStates.back();
+
+		uint64_t relevantOccupiedBoard = currentState.occupiedBoard[wantedPlayer];
+
+		uint64_t pawnBoard = relevantOccupiedBoard & currentState.pieceBoards[1];
+		uint64_t knightBoard = relevantOccupiedBoard & currentState.pieceBoards[2];
+		uint64_t bishopBoard = relevantOccupiedBoard & currentState.pieceBoards[3];
+		uint64_t rookBoard = relevantOccupiedBoard & currentState.pieceBoards[4];
+		uint64_t queenBoard = relevantOccupiedBoard & currentState.pieceBoards[5];
 
 		attackingSquares[wantedPlayer] = 0ull;
 

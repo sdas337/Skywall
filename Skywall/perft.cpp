@@ -18,10 +18,26 @@ uint64_t moveChecker(int depth) {
 		return 1;
 	}
 
+	/*if (depth == 1 && testBoard.occupiedBoard[0] == 8589999871) {
+		cout << "Here first\n";
+	}*/
+
 	vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
+
+		/*if (depth == 1 && origBoard[0] == 8589999871) {
+			cout << "Here first\n";
+		}*/
+
+		/*if (depth == 2 && i == 0) {
+			cout << "Error point 1\n";
+		}*/
+
+		/*if (depth == 3 && i == 4) {
+			cout << "Stop here first.\n";
+		}*/
 
 		testBoard.makeMove(move);
 
@@ -30,6 +46,18 @@ uint64_t moveChecker(int depth) {
 
 		testBoard.undoMove(move);
 
+		/*if (testBoard.occupiedBoard[1] == 18446181123756130304) {
+			cout << "Examine here please\n";
+		}*/
+
+		/*if (origBoard[0] != testBoard.boardStates.back().occupiedBoard[0] || origBoard[1] != testBoard.boardStates.back().occupiedBoard[1] || knightBoard != testBoard.boardStates.back().pieceBoards[2]) {
+			cout << "ERROR. MAKE UNMAKE HAS BROKEN." << origBoard[0] << " " << origBoard[1];
+			cout << "\n i = " << int(i) << ", depth = " << depth << "\n";
+		}*/
+
+		/*if (depth == 3) {
+			cout << "Here\n";
+		}*/
 
 		if (DEBUG == 1 && depth == testDepth) {
 			cout << move.printMove() << " - " << movesMade << "\n";
@@ -38,53 +66,15 @@ uint64_t moveChecker(int depth) {
 	return nodes;
 }
 
-void importPerftTest() {
-	ifstream file("../../../testFiles/standard.epd");
-
-	if (file.is_open()) {	// Reading in all the tests
-		int lineCount = 0;
-		string line;
-		while (getline(file, line)) {
-			// using printf() in all tests for consistency
-
-			string fenString = line.substr(0, line.find(";") - 1);
-			FENs[lineCount] = fenString;
-			//printf("%s\n", fenString.c_str());
-
-			line = line.substr(line.find(";") + 1);
-			vector<pair<int, uint64_t>> oneFEN;
-			int64_t numTests = count(line.begin(), line.end(), ';');
-			for (int i = 0; i < numTests + 1; i++) {
-				string movesAtDepth = line.substr(0, line.find(";") - 1);
-				uint64_t numMoves = stoi(movesAtDepth.substr(3));
-				int depth = stoi(movesAtDepth.substr(1, 2));
-				//printf("%d %d\n", depth, numMoves);
-				line = line.substr(line.find(";") + 1);
-
-				oneFEN.emplace_back(depth, numMoves);
-			}
-			perftTestResults[lineCount] = oneFEN;
-
-			// PerftTest at each depth for the given pos
-
-
-			lineCount++;
-		}
-		file.close();
-
-		printf("Finished reading in all tests\n");
-	}
-}
-
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
-	//customPos = FENs[1];
-	//customPos = "rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1";
-	//customPos = "k7/8/8/8/6Pp/8/K7/8 w - - 0 2";
-	//customPos = "k7/8/8/8/6Pp/K7/8/8 b - - 1 2";
+	customPos = FENs[1];
+	//customPos = "rnbqkbnr/pppppppp/8/8/8/1P6/P1PPPPPP/RNBQKBNR b KQkq - 0 1";
+	//customPos = "rnbqkbnr/pppp1ppp/8/4p3/8/1P6/P1PPPPPP/RNBQKBNR w KQkq e6 0 2";
+	//customPos = "rnbqkbnr/pppp1ppp/8/4p3/8/BP6/P1PPPPPP/RN1QKBNR b KQkq - 1 2";
 	//customPos = "k7/8/8/8/6P1/K6p/8/8 w - - 0 3";
 
-	testDepth = 1;
+	testDepth = 4;
 	testBoard.loadBoardFromFen(customPos);
 
 	// breaks here
@@ -138,4 +128,42 @@ void completePerftTest() {
 
 	printf("Total tests: %d / %d\n", passedTestCount, testCount);
 
+}
+
+void importPerftTest() {
+	ifstream file("../../../testFiles/standard.epd");
+
+	if (file.is_open()) {	// Reading in all the tests
+		int lineCount = 0;
+		string line;
+		while (getline(file, line)) {
+			// using printf() in all tests for consistency
+
+			string fenString = line.substr(0, line.find(";") - 1);
+			FENs[lineCount] = fenString;
+			//printf("%s\n", fenString.c_str());
+
+			line = line.substr(line.find(";") + 1);
+			vector<pair<int, uint64_t>> oneFEN;
+			int64_t numTests = count(line.begin(), line.end(), ';');
+			for (int i = 0; i < numTests + 1; i++) {
+				string movesAtDepth = line.substr(0, line.find(";") - 1);
+				uint64_t numMoves = stoi(movesAtDepth.substr(3));
+				int depth = stoi(movesAtDepth.substr(1, 2));
+				//printf("%d %d\n", depth, numMoves);
+				line = line.substr(line.find(";") + 1);
+
+				oneFEN.emplace_back(depth, numMoves);
+			}
+			perftTestResults[lineCount] = oneFEN;
+
+			// PerftTest at each depth for the given pos
+
+
+			lineCount++;
+		}
+		file.close();
+
+		printf("Finished reading in all tests\n");
+	}
 }

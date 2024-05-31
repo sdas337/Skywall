@@ -13,22 +13,7 @@ using namespace std;
 
 Board mainBoard;
 
-void testing() {
-	importPerftTest();
-	printf("Beginning mass perft test.\n");
-	auto start = chrono::high_resolution_clock::now();
-	completePerftTest();
-	//perftTest();
-	auto stop = chrono::high_resolution_clock::now();
 
-	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-	cout << duration.count() << " milliseconds\n";
-	cout << testBoard.nodes << " nodes\n";
-	uint64_t nodesPerSecond = (testBoard.nodes * 1000ull) / (duration.count());
-
-	printf("%llu nps", nodesPerSecond);
-
-}
 
 void positionHandling(vector<string> &instruction) {
 	auto movesIndex = find(instruction.begin(), instruction.end(), "moves");
@@ -186,6 +171,24 @@ void uciHandling() {
 		instructionHandling(instruction);
 
 	}
+}
+
+
+void testing() {
+	importPerftTest();
+	printf("Beginning mass perft test.\n");
+	auto start = chrono::high_resolution_clock::now();
+	completePerftTest();
+	//perftTest();
+	auto stop = chrono::high_resolution_clock::now();
+
+	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	cout << duration.count() << " milliseconds\n";
+	cout << testBoard.nodes << " nodes\n";
+	uint64_t nodesPerSecond = (testBoard.nodes * 1000ull) / (duration.count());
+
+	printf("%llu nps", nodesPerSecond);
+
 }
 
 int main()
