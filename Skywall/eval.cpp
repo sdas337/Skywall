@@ -7,8 +7,8 @@ using namespace std;
 
 #define FLIP(sq) ((sq)^56)
 
-int mg_value[7] = { 0, 82, 337, 365, 477, 1025};
-int eg_value[7] = { 0, 94, 281, 297, 512,  936};
+int mg_value[6] = { 0, 82, 337, 365, 477, 1025};
+int eg_value[6] = { 0, 94, 281, 297, 512,  936};
 
 int mg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,  0,   0,
@@ -204,7 +204,7 @@ int evaluate(Board& board) {
         }
     }
 
-    int side2move = board.currentPlayer - 1;
+    int side2move = board.currentPlayer;
 
     /* tapered eval */
     int mgScore = midgame[side2move] - midgame[side2move ^ 1];
