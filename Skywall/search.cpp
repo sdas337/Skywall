@@ -54,11 +54,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
-	bool qsearch = depth <= 0;
 	bool notRoot = plyFromRoot > 0;
 
 	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool pvNode = (beta - alpha) > 1;
+	bool qsearch = depth <= 0;// && !inCheck;
 
 	int historyIndex = plyFromRoot % 2;
 	int bestScore = -999999;
@@ -174,6 +174,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		board.undoMove(move);
 
+		//cout << move.printMove() << " has a score of " << currentScore << ". Depth is " << depth << "\n";
+
 		// new best move
 		if (currentScore > bestScore) {
 			bestScore = currentScore;
@@ -214,12 +216,13 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	if (currentEntry.depth == 0) {
-		board.ttEntries++;
-	}
 
 	if (abs(alpha) != 900000) {
 		transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, alpha, depth, boundType);
+
+		board.ttEntries++;
+		//cout << "Added move " << bestMove.printMove() << " to the transposition table.\n";
+
 	}
 
 	return alpha;

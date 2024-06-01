@@ -139,3 +139,43 @@ void completePerftTest() {
 	printf("Total tests: %d / %d\n", passedTestCount, testCount);
 
 }
+
+void movegenBenchmark() {
+	importPerftTest();
+
+	auto start = chrono::high_resolution_clock::now();
+	for (int line = 0; line < 128; line++) {
+		testBoard.loadBoardFromFen(FENs[line]);
+
+		for (int repCount = 0; repCount < 524288; repCount++) {
+			vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+		}
+	}
+	auto stop = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+
+	cout << "Movegen Time: " << duration.count() << " microseconds\n";
+	double moveGenSpeed = (67108864.0) / (duration.count());
+	printf("Movegen speed: %f gps\n\n\n", moveGenSpeed);
+
+	start = chrono::high_resolution_clock::now();
+	double moveCount = 0;
+	for (int line = 0; line < 128; line++) {
+		testBoard.loadBoardFromFen(FENs[line]);
+
+		vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+		for (int repCount = 0; repCount < 524288; repCount++) {
+			for (Move move : allMoves) {
+				testBoard.makeMove(move);
+				moveCount++;
+				testBoard.undoMove(move);
+			}
+		}
+	}
+	stop = chrono::high_resolution_clock::now();
+	duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+
+	cout << "MakeMove Time: " << duration.count() << " microseconds\n";
+	double makeMoveTime = moveCount / (duration.count());
+	printf("MakeMove speed: %f mps", makeMoveTime);
+}

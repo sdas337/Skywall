@@ -188,6 +188,7 @@ void uciHandling() {
 	}
 }
 
+
 int main()
 {
 	initEvalTables();
@@ -195,11 +196,14 @@ int main()
 	//testing();
 	uciHandling();
 
-	//mainBoard.loadBoardFromFen("8/p4p2/6k1/8/5p2/8/3q4/K7 b - - 7 118");
-
+	//mainBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";
 
+	//testEval();
+
 	//searchBoard(mainBoard, 60000 * 60);
+
+	//movegenBenchmark();
 
 	return 0;
 }
