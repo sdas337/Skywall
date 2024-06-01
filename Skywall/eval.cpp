@@ -7,8 +7,8 @@ using namespace std;
 
 #define FLIP(sq) ((sq)^56)
 
-int mg_value[6] = { 0, 82, 337, 365, 477, 1025};
-int eg_value[6] = { 0, 94, 281, 297, 512,  936};
+int mg_value[6] = { 0, 82, 337, 365, 477, 1025 };
+int eg_value[6] = { 0, 94, 281, 297, 512,  936 };
 
 int mg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,  0,   0,
@@ -149,7 +149,7 @@ int* mg_pesto_table[6] =
     mg_knight_table,
     mg_bishop_table,
     mg_rook_table,
-    mg_queen_table    
+    mg_queen_table
 };
 
 int* eg_pesto_table[6] =
@@ -162,7 +162,7 @@ int* eg_pesto_table[6] =
     eg_queen_table
 };
 
-int gamephaseInc[12] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 4, 4};
+int gamephaseInc[6] = { 0, 0, 1, 1, 2, 4 };
 int mg_table[12][64];
 int eg_table[12][64];
 
@@ -183,38 +183,43 @@ void initEvalTables()
     }
 }
 
-
 int evaluate(Board& board) {
-    int midgame[2];
-    int endgame[2];
+    int midgame = 0, endgame = 0;
     int gamePhase = 0;
 
-    midgame[0] = 0;
-    midgame[1] = 0;
-    endgame[0] = 0;
-    endgame[1] = 0;
+    BoardStateInformation currentState = board.boardStates.back();
 
-    /* evaluate each piece */
-    for (int sq = 0; sq < 64; ++sq) {
-        int piece = board.rawBoard[sq];
-        if (piece != 0) {
-            midgame[piece / 8 - 1] += mg_table[piece % 8 - 1][sq];
-            endgame[piece / 8 - 1] += eg_table[piece % 8 - 1][sq];
-            gamePhase += gamephaseInc[piece % 8 - 1];
+    for (int sideToMove = 0; sideToMove <= 1; sideToMove++) {
+        for (int pieceType = 0; pieceType <= 5; pieceType++) {
+            uint64_t currentBoard = currentState.occupiedBoard[sideToMove] & currentState.pieceBoards[pieceType];
+
+            while (currentBoard != 0) {
+                int sq = popLSB(currentBoard);
+
+                // Difference is the +6 for side to move
+
+                midgame += mg_table[pieceType][sq];
+                endgame += eg_table[pieceType][sq];
+
+                gamePhase += gamephaseInc[pieceType];
+            }
+
+            //cout << "After piece type " << pieceType << ", the score is " << midgame << "\n";
+            //cout << "After piece type " << pieceType << ", the score is " << endgame << "\n\n";
+
         }
+
+        midgame = midgame * -1;
+        endgame = endgame * -1;
     }
-
-    int side2move = board.currentPlayer;
-
-    /* tapered eval */
-    int mgScore = midgame[side2move] - midgame[side2move ^ 1];
-    int egScore = endgame[side2move] - endgame[side2move ^ 1];
 
     int mgPhase = gamePhase;
     if (mgPhase > 24) mgPhase = 24; /* in case of early promotion */
     int egPhase = 24 - mgPhase;
 
-    int finalScore = (mgScore * mgPhase + egScore * egPhase) / 24;
+    int side2move = board.currentPlayer == 0 ? 1 : -1;
 
-    return finalScore;
+    int finalScore = (midgame * mgPhase + endgame * egPhase) / 24;
+
+    return finalScore * side2move;
 }

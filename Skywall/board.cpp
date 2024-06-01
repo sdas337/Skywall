@@ -12,8 +12,9 @@ struct BoardStateInformation {
 	int enPassantSquare;
 	bool castlingRights[4];
 	int fiftyMoveCount;
-	int capturedPieceType;
+	//int capturedPieceType;
 	uint64_t zobristHash;
+
 	uint64_t occupiedBoard[2];
 	uint64_t pieceBoards[6];
 };
@@ -39,7 +40,7 @@ public:
 	void setPiece(int row, int col, int piece) {
 		int square = 8 * row + col;
 
-		rawBoard[square] = piece;
+		//rawBoard[square] = piece;
 		boardStates.back().occupiedBoard[piece / 8 - 1] |= (1ull) << square;
 		boardStates.back().pieceBoards[piece % 8 - 1] |= (1ull) << square;
 	}
@@ -48,7 +49,7 @@ public:
 		int square = 8 * row + col;
 		boardStates.back().occupiedBoard[0] &= ~(1ull << square);
 		boardStates.back().occupiedBoard[1] &= ~(1ull << square);
-		rawBoard[square] = 0;
+		//rawBoard[square] = 0;
 
 		for(int i = 0; i < 6; i++)
 			boardStates.back().pieceBoards[i] &= ~((1ull) << square);
@@ -82,7 +83,8 @@ public:
 			pieceRemovalSquare += (currentPlayer == 0 ? -8 : 8);
 		}
 
-		return rawBoard[pieceRemovalSquare] != 0;
+		return (boardStates.back().occupiedBoard[1 - currentPlayer] & (1ull << pieceRemovalSquare)) != 0;
+		//return rawBoard[pieceRemovalSquare] != 0;
 	}
 
 	void makeMove(Move move) {
@@ -95,36 +97,47 @@ public:
 		if (flags == 1 || flags == 7) {
 			pieceRemovalSquare = targetSquare + (currentPlayer == 0 ? -8 : 8);
 		}
-		bool capturedPiece = rawBoard[pieceRemovalSquare] != 0;
+		//bool capturedPiece = rawBoard[pieceRemovalSquare] != 0;
 
 		// Actual chess move
-		int movingPiece = rawBoard[startSquare];
-		newInfo.capturedPieceType = rawBoard[pieceRemovalSquare];
-
-		rawBoard[startSquare] = 0;
-		rawBoard[pieceRemovalSquare] = 0;
-		rawBoard[targetSquare] = movingPiece;
-
-		newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << startSquare);
-		newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << targetSquare);
-		newInfo.occupiedBoard[(movingPiece / 8) % 2] &= ~(1ull << pieceRemovalSquare);
-
-		newInfo.pieceBoards[movingPiece % 8 - 1] &= ~(1ull << startSquare);
-		if (capturedPiece) {
-			newInfo.pieceBoards[newInfo.capturedPieceType % 8 - 1] &= ~(1ull << pieceRemovalSquare);
+		int pieceType = 0;
+		int removedPieceType = 7;
+		for (int i = 0; i < 6; i++) {
+			if (newInfo.pieceBoards[i] & (1ull << startSquare))
+				pieceType = i;
+			if (newInfo.pieceBoards[i] & (1ull << pieceRemovalSquare))
+				removedPieceType = i;
 		}
-		newInfo.pieceBoards[movingPiece % 8 - 1] |= (1ull << targetSquare);
+
+		bool capturedPiece = removedPieceType != 7;
+
+		//int movingPiece = rawBoard[startSquare];
+		//newInfo.capturedPieceType = removedPieceType;
+		//newInfo.capturedPieceType = rawBoard[pieceRemovalSquare];
+
+		//rawBoard[startSquare] = 0;
+		//rawBoard[pieceRemovalSquare] = 0;
+		//rawBoard[targetSquare] = movingPiece;
+
+		newInfo.occupiedBoard[currentPlayer] &= ~(1ull << startSquare);
+		newInfo.occupiedBoard[currentPlayer] |= (1ull << targetSquare);
+		newInfo.occupiedBoard[1 - currentPlayer] &= ~(1ull << pieceRemovalSquare);
+
+		newInfo.pieceBoards[pieceType] &= ~(1ull << startSquare);
+		if (capturedPiece) {
+			newInfo.pieceBoards[removedPieceType] &= ~(1ull << pieceRemovalSquare);
+		}
+		newInfo.pieceBoards[pieceType] |= (1ull << targetSquare);
 
 
-		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][startSquare];
-		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][targetSquare];
+		newInfo.zobristHash ^= zobPieces[currentPlayer][pieceType][startSquare];
+		newInfo.zobristHash ^= zobPieces[currentPlayer][pieceType][targetSquare];
 
 		newInfo.fiftyMoveCount++;
-		if (capturedPiece || (rawBoard[startSquare] & 7) == 2) {
+		if (capturedPiece || pieceType == 1) {
 			newInfo.fiftyMoveCount = 0;
-			newInfo.zobristHash ^= zobPieces[currentPlayer][newInfo.capturedPieceType % 8][targetSquare];
+			newInfo.zobristHash ^= zobPieces[currentPlayer][removedPieceType][targetSquare];
 		}
-
 
 		newInfo.enPassantSquare = 64;
 
@@ -137,20 +150,20 @@ public:
 		// Handle Castling
 		else if (flags == 6) {
 			if (targetSquare % 8 > 3) {	// Queenside vs Kingside
-				rawBoard[(targetSquare / 8) * 8 + 5] = rawBoard[(targetSquare / 8) * 8 + 7];
-				rawBoard[(targetSquare / 8) * 8 + 7] = 0;
+				//rawBoard[(targetSquare / 8) * 8 + 5] = rawBoard[(targetSquare / 8) * 8 + 7];
+				//rawBoard[(targetSquare / 8) * 8 + 7] = 0;
 
-				newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
-				newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 5));
+				newInfo.occupiedBoard[currentPlayer] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
+				newInfo.occupiedBoard[currentPlayer] |= (1ull << ((targetSquare / 8) * 8 + 5));
 
 				newInfo.pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
 				newInfo.pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 5));
 			} else {
-				rawBoard[(targetSquare / 8) * 8 + 3] = rawBoard[(targetSquare / 8) * 8];
-				rawBoard[(targetSquare / 8) * 8] = 0;
+				//rawBoard[(targetSquare / 8) * 8 + 3] = rawBoard[(targetSquare / 8) * 8];
+				//rawBoard[(targetSquare / 8) * 8] = 0;
 
-				newInfo.occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8));
-				newInfo.occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 3));
+				newInfo.occupiedBoard[currentPlayer] &= ~(1ull << ((targetSquare / 8) * 8));
+				newInfo.occupiedBoard[currentPlayer] |= (1ull << ((targetSquare / 8) * 8 + 3));
 
 				newInfo.pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8));
 				newInfo.pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 3));
@@ -166,7 +179,7 @@ public:
 
 		// Handle promotion
 		else if (flags > 1 && flags < 6) {
-			rawBoard[targetSquare] = (8 + currentPlayer * 8) | (flags + 1);
+			//rawBoard[targetSquare] = (8 + currentPlayer * 8) | (flags + 1);
 
 			newInfo.pieceBoards[1] &= ~(1ull << targetSquare);
 			newInfo.pieceBoards[flags] |= (1ull << targetSquare);
@@ -176,7 +189,7 @@ public:
 		}
 
 		// Remove relevant castling rights
-		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
+		if (pieceType == 0) {	// King check
 			newInfo.castlingRights[2 * currentPlayer] = false;
 			newInfo.castlingRights[2 * currentPlayer + 1] = false;
 
@@ -186,7 +199,7 @@ public:
 			kingLocations[currentPlayer] = targetSquare;
 		}
 
-		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
+		if (pieceType == 4) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
 				newInfo.castlingRights[2 * currentPlayer] = false;
 				newInfo.zobristHash ^= zobCastle[2 * currentPlayer];
@@ -218,60 +231,41 @@ public:
 		BoardStateInformation formerStatus = boardStates.back();
 		boardStates.erase(boardStates.end()-1);
 
-		if (flags == 1) {
+		/*if (flags == 1) {
 			pieceRemovalSquare = targetSquare + (currentPlayer == 0 ? 8 : -8);
 		}
 
 		int movingPiece = rawBoard[targetSquare];
 
-		rawBoard[startSquare] = movingPiece;
-		rawBoard[targetSquare] = 0;
-		rawBoard[pieceRemovalSquare] = formerStatus.capturedPieceType;
-
-		/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << targetSquare);
-		occupiedBoard[movingPiece / 8 - 1] |= (1ull << startSquare);
-
-		pieceBoards[movingPiece % 8 - 1] &= ~(1ull << targetSquare);
-		pieceBoards[movingPiece % 8 - 1] |= (1ull << startSquare);
-		
-		if (formerStatus.capturedPieceType) {
-			occupiedBoard[(movingPiece / 8) % 2] |= (1ull << pieceRemovalSquare);
-			pieceBoards[formerStatus.capturedPieceType % 8 - 1] |= (1ull << pieceRemovalSquare);
-		}*/
+		//rawBoard[startSquare] = movingPiece;
+		//rawBoard[targetSquare] = 0;
+		//rawBoard[pieceRemovalSquare] = formerStatus.capturedPieceType;
 
 		if (flags == 6) {
 			if (targetSquare % 8 > 3) {	// Queenside vs Kingside
 				rawBoard[(targetSquare / 8) * 8 + 7] = rawBoard[(targetSquare / 8) * 8 + 5];
 				rawBoard[(targetSquare / 8) * 8 + 5] = 0;
 
-				/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 5));
-				occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 7));
-
-				pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8 + 7));
-				pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 5));*/
 
 			} else {
 				rawBoard[(targetSquare / 8) * 8] = rawBoard[(targetSquare / 8) * 8 + 3];
 				rawBoard[(targetSquare / 8) * 8 + 3] = 0;
 
-				/*occupiedBoard[movingPiece / 8 - 1] &= ~(1ull << ((targetSquare / 8) * 8 + 3));
-				occupiedBoard[movingPiece / 8 - 1] |= (1ull << ((targetSquare / 8) * 8 + 0));
-
-				pieceBoards[4] |= (1ull << ((targetSquare / 8) * 8));
-				pieceBoards[4] &= ~(1ull << ((targetSquare / 8) * 8 + 3));*/
 			}
 		}
 		else if (flags > 1 && flags < 6) {	// Reset to pawn
 			rawBoard[startSquare] = (8 + (currentPlayer + 1) % 2 * 8) | 2;
-
-			/*pieceBoards[1] |= (1ull << startSquare);	// Fixing incorrect move that occurred earlier
-			pieceBoards[flags] &= ~(1ull << startSquare);*/
 		}
 
 		// King location check
 		if ((rawBoard[startSquare] & 7) == 1) {	// King check
 			kingLocations[(currentPlayer + 1) % 2] = startSquare;
-		}
+		}*/
+
+		uint64_t whiteKingBoard = boardStates.back().pieceBoards[0] & boardStates.back().occupiedBoard[0];
+		uint64_t blackKingBoard = boardStates.back().pieceBoards[0] & boardStates.back().occupiedBoard[1];
+		kingLocations[0] = popLSB(whiteKingBoard);
+		kingLocations[1] = popLSB(blackKingBoard);
 
 		plyCount--;
 		currentPlayer = (currentPlayer + 1) % 2;
@@ -284,7 +278,7 @@ public:
 		newInfo.zobristHash ^= zobColor;
 		newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
 
-		newInfo.capturedPieceType = 0;
+		//newInfo.capturedPieceType = 0;
 
 		boardStates.push_back(newInfo);
 
@@ -553,7 +547,7 @@ public:
 		tmp.castlingRights[2] = castlingRights[2];
 		tmp.castlingRights[3] = castlingRights[3];
 		tmp.fiftyMoveCount = fiftyMoveCount;
-		tmp.capturedPieceType = 0;
+		//tmp.capturedPieceType = 0;
 		tmp.zobristHash = 0ull;
 
 		//Manually calculate zobristHash
@@ -573,12 +567,14 @@ public:
 		tmp.castlingRights[2] = true;
 		tmp.castlingRights[3] = true;
 		tmp.fiftyMoveCount = 0;
-		tmp.capturedPieceType = 0;
+		//tmp.capturedPieceType = 0;
 		tmp.zobristHash = 0ull;
 
 		boardStates.push_back(tmp);
 
 		examinedMovesDuringCheck.resize(15);
+		allMoves.resize(256);
+
 		for (int i = 0; i < 8; i++) {	// Row
 			for (int j = 0; j < 8; j++) {	// Col
 				setPiece(i, j, 0);
@@ -596,12 +592,10 @@ public:
 	}
 
 	vector<Move> generateLegalMovesV2(bool onlyCaptures) {	// Using faster check detection
-		vector<Move> allMoves(256);
-
 		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
-		vector<Move> validMoves(256);
-		int origCurrentPlayer = currentPlayer;
+		vector<Move> validMoves(moveCount);
 
+		int origCurrentPlayer = currentPlayer;
 		int moveIndex = 0;
 
 		for (uint8_t i = 0; i < moveCount; i++) {
@@ -624,6 +618,9 @@ public:
 					moveIndex++;
 				}
 			}
+			else {
+				//cout << moveStatus << "\n";
+			}
 		}
 
 		validMoves.resize(moveIndex);
@@ -639,9 +636,11 @@ private:
 	uint64_t validKingMoves[64];
 
 	vector<Move> examinedMovesDuringCheck;
+	vector<Move> allMoves;
+
 
 	uint64_t validPawnMoveMasks[64][3];
-	uint64_t zobPieces[3][7][64];
+	uint64_t zobPieces[2][6][64];
 	uint64_t zobColor;
 	uint64_t zobCastle[4];
 	uint64_t zobEnPassant[8];
@@ -653,7 +652,7 @@ private:
 		zobColor = distro(generator);
 
 		for (int k = 0; k < 2; k++) {
-			for (int i = 0; i < 7; i++) {
+			for (int i = 0; i < 6; i++) {
 				for (int j = 0; j < 64; j++) {
 					zobPieces[k][i][j] = distro(generator);
 				}
