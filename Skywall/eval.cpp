@@ -7,8 +7,11 @@ using namespace std;
 
 #define FLIP(sq) ((sq)^56)
 
-int mg_value[7] = { 0, 82, 337, 365, 477, 1025};
-int eg_value[7] = { 0, 94, 281, 297, 512,  936};
+//int mg_value[6] = { 0, 82, 337, 365, 477, 1025};
+//int eg_value[6] = { 0, 94, 281, 297, 512,  936};
+
+int mg_value[6] = { 10000, 100, 310, 330, 500, 1000 };
+int eg_value[6] = { 10000, 94, 281, 297, 512, 936};
 
 int mg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,  0,   0,
@@ -162,7 +165,7 @@ int* eg_pesto_table[6] =
     eg_queen_table
 };
 
-int gamephaseInc[12] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 4, 4};
+int gamephaseInc[6] = {0, 0, 1, 1, 2, 4};
 int mg_table[12][64];
 int eg_table[12][64];
 
@@ -175,14 +178,20 @@ void initEvalTables()
     int pc, p, sq;
     for (p = 0, pc = 0; p <= 5; pc++, p++) {
         for (sq = 0; sq < 64; sq++) {
-            mg_table[pc][sq] = mg_value[p] + mg_pesto_table[p][sq];
-            eg_table[pc][sq] = eg_value[p] + eg_pesto_table[p][sq];
-            mg_table[pc + 6][sq] = mg_value[p] + mg_pesto_table[p][FLIP(sq)];
-            eg_table[pc + 6][sq] = eg_value[p] + eg_pesto_table[p][FLIP(sq)];
+            mg_table[pc][sq] = mg_value[p] + mg_pesto_table[p][FLIP(sq)];
+            eg_table[pc][sq] = eg_value[p] + eg_pesto_table[p][FLIP(sq)];
         }
     }
 }
 
+void testEval() {
+    for (int pieceType = 0; pieceType < 6; pieceType++) {
+        for (int sq = 0; sq < 64; sq++) {
+            cout << mg_table[pieceType][sq ^ 56] - mg_value[pieceType]<< "\n";
+        }
+    }
+    return;
+}
 
 int evaluate(Board& board) {
     int midgame[2];
@@ -198,23 +207,26 @@ int evaluate(Board& board) {
     for (int sq = 0; sq < 64; ++sq) {
         int piece = board.rawBoard[sq];
         if (piece != 0) {
-            midgame[piece / 8 - 1] += mg_table[piece % 8 - 1][sq];
-            endgame[piece / 8 - 1] += eg_table[piece % 8 - 1][sq];
-            gamePhase += gamephaseInc[piece % 8 - 1];
+            int pieceType = (piece % 8 - 1);
+            int pieceColor = piece / 8 - 1;
+            int index = sq ^ (pieceColor == 1 ? 56 : 0);
+
+            midgame[pieceColor] += mg_table[pieceType][index];
+            endgame[pieceColor] += eg_table[pieceType][index];
+            gamePhase += gamephaseInc[pieceType];
         }
     }
 
-    int side2move = board.currentPlayer - 1;
 
     /* tapered eval */
-    int mgScore = midgame[side2move] - midgame[side2move ^ 1];
-    int egScore = endgame[side2move] - endgame[side2move ^ 1];
+    int mgScore = midgame[0] - midgame[1];
+    int egScore = endgame[0] - endgame[1];
 
     int mgPhase = gamePhase;
-    if (mgPhase > 24) mgPhase = 24; /* in case of early promotion */
+    //if (mgPhase > 24) mgPhase = 24; /* in case of early promotion */
     int egPhase = 24 - mgPhase;
 
-    int finalScore = (mgScore * mgPhase + egScore * egPhase) / 24;
+    int finalScore = (mgScore * mgPhase + egScore * egPhase) / (board.currentPlayer == 1 ? 24 : -24) + gamePhase / 2;
 
     return finalScore;
 }
