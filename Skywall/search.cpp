@@ -6,6 +6,8 @@ using namespace std;
 
 #define TT_size 1048576
 
+extern int lmrReductions[256][256];
+
 struct TTentry {
 	uint64_t zobristHash;
 	Move m;
@@ -166,7 +168,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		// Late Move Reduction
 		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= 6 && depth > 2) {
-			reductions = 1;
+			reductions = lmrReductions[depth][i];
 		}
 		
 		if (i == 0) {

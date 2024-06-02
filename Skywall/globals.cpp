@@ -4,6 +4,9 @@
 
 using namespace std;
 
+int lmrReductions[256][256];
+
+
 // Sourced from Clarity
 int popLSB(uint64_t& bitboard) {
     int lsb = std::countr_zero(bitboard);
@@ -34,4 +37,13 @@ int squareNameToValue(string square) {
     num = 8 * row + col;
 
     return num;
+}
+
+void setupLMR() {
+    for (int depth = 1; depth < 256; depth++) {
+        for (int moveCount = 1; moveCount < 256; moveCount++) {
+            lmrReductions[depth][moveCount] = 1;
+            //lmrReductions[depth][moveCount] = (int)(0.5 + log(depth) * log(moveCount) * 0.20);
+        }
+    }
 }
