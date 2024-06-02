@@ -92,6 +92,12 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		alpha = max(alpha, bestScore);
 	}
 	else if (!pvNode && !inCheck) {	// Pruning Technique Location
+		// Testing out rf pruning
+		int rfPruningMargin = 95 * depth;
+		if (depth <= 5 && eval - rfPruningMargin >= beta) {
+			return eval - rfPruningMargin;
+		}
+
 		if (nullMovePruningAllowed && depth >= 3) {
 			board.makeNullMove();
 			int nullMoveScore = -negamax(depth - 3 - depth / 5, plyFromRoot + 1, -beta, -alpha, false);

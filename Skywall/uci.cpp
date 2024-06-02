@@ -201,7 +201,7 @@ int main()
 
 	//testEval();
 
-	//searchBoard(mainBoard, 60000 * 60);
+	//searchBoard(mainBoard, 1000 * 8 * 60);
 
 	//movegenBenchmark();
 
