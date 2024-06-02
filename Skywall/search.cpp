@@ -44,7 +44,6 @@ int maxHistory;
 Move killerMoves[1024][2];
 
 Move moveToPlay;
-int chosenDepth;
 
 int maxTimeForMove = 0;
 int maxEval;
@@ -270,22 +269,34 @@ Move searchBoard(Board &relevantBoard, int time) {
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
 
-	for (chosenDepth = 1; chosenDepth < 64; chosenDepth++) {
-		int score = negamax(chosenDepth, 0, -999999, 999999, true);
+	for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < 64;) {
+		int score = negamax(chosenDepth, 0, alpha, beta, true);
 
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 		if (duration > maxTimeForMove)
 			break;
 
-		cout << duration << " ms\t\t";
-		cout << chosenDepth << "\t\t";
-		cout << moveToPlay.printMove() << " \t\t";
-		cout << score << "\t\t";
-		cout << maxHistory << "\t\t";
-		cout << board.lookups << "\t\t";
-		cout << board.ttEntries << "\t\t";
-		cout << board.nodes << "\n";
+
+		if (score <= alpha)
+			alpha -= 70;
+		else if (score >= beta)
+			beta += 70;
+		else {
+			cout << duration << " ms\t\t";
+			cout << chosenDepth << "\t\t";
+			cout << moveToPlay.printMove() << " \t\t";
+			cout << score << "\t\t";
+			cout << maxHistory << "\t\t";
+			cout << board.lookups << "\t\t";
+			cout << board.ttEntries << "\t\t";
+			cout << board.nodes << "\n";
+
+			chosenDepth++;
+			alpha = score - 15;
+			beta = score + 15;
+
+		}
 	}
 
 	return moveToPlay.rawValue == 0 ? board.generateLegalMovesV2(false)[0] : moveToPlay;
