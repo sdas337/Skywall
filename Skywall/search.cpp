@@ -58,7 +58,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool pvNode = (beta - alpha) > 1;
-	bool qsearch = depth <= 0;// && !inCheck;
+	bool qsearch = depth <= 0;
 
 	int historyIndex = plyFromRoot % 2;
 	int bestScore = -999999;
@@ -90,7 +90,15 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		alpha = max(alpha, bestScore);
 	}
 	else if (!pvNode && !inCheck) {	// Pruning Technique Location
-		
+		if (nullMovePruningAllowed && depth >= 3) {
+			board.makeNullMove();
+			int nullMoveScore = -negamax(depth - 3 - depth / 5, plyFromRoot + 1, -beta, -alpha, false);
+			board.undoNullMove();
+
+			if (nullMoveScore >= beta) {
+				return nullMoveScore;
+			}
+		}
 	}
 
 	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);

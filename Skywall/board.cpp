@@ -280,9 +280,7 @@ public:
 		BoardStateInformation newInfo = boardStates.back();
 
 		newInfo.zobristHash ^= zobColor;
-		newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
-
-		newInfo.capturedPieceType = 0;
+		//newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
 
 		boardStates.push_back(newInfo);
 
