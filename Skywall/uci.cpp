@@ -81,7 +81,7 @@ void positionHandling(vector<string> &instruction) {
 		}
 	}
 	
-	mainBoard.printBoard();
+	//mainBoard.printBoard();
 	return;
 }
 
@@ -101,6 +101,8 @@ void instructionHandling(string instruction) {
 	}
 	else if (splitString[0] == "ucinewgame") {
 		mainBoard = Board();
+		for(int i = 0; i < TT_size; i++)
+			transpositionTable[i] = TTentry();
 	}
 	else if (splitString[0] == "position") {
 		positionHandling(splitString);

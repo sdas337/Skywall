@@ -142,6 +142,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	Move bestMove = Move(0,0,0);
 	int newDepth = depth - 1, currentScore, origAlpha = alpha;
 
+	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
+
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
@@ -161,6 +163,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		Move move = allMoves[i];
 		bool importantMoves = (board.isCapture(move) || move.getFlag() > 1 && move.getFlag() < 6);
+
+		// Pruning moves within the loop
+		if (futilePruning && !importantMoves && i > 0) {
+			break;
+		}
 
 		board.makeMove(move);
 		board.nodes++;
