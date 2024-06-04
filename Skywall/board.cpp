@@ -849,7 +849,6 @@ private:
 	uint64_t generatePawnCaptures(int square, int wantedPlayer) {
 		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
 
-		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
 		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
 
 		uint64_t captureFiles = 0;
@@ -859,7 +858,14 @@ private:
 		if (square % 8 < 7) {
 			captureFiles |= (currentFileMask << 1);
 		}
-		uint64_t validCapturePawnMoves = (currentPawnMask & captureFiles) & (otherOccupiedBoard | 1ull << boardStates.back().enPassantSquare);
+
+		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer] & captureFiles;
+
+		if (boardStates.back().enPassantSquare < 64 && boardStates.back().enPassantSquare >= 0) {
+			otherOccupiedBoard |= (1ull << boardStates.back().enPassantSquare);
+		}
+
+		uint64_t validCapturePawnMoves = currentPawnMask & otherOccupiedBoard;
 
 		return validCapturePawnMoves;
 	}
