@@ -51,6 +51,10 @@ public:
 		return rawValue;
 	}
 
+	bool isPromotion() {
+		return getFlag() > 1 && getFlag() < 6;
+	}
+
 	uint16_t rawValue;
 
 private:

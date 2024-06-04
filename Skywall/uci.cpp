@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-// uci.cpp : Defines the entry point for the application.
+// uci.cpp : Defines the entry point for the application..
+// Responsible for UCI handling
 
 #include "uci.h"
 #include "globals.h"

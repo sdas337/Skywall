@@ -290,7 +290,6 @@ public:
 	}
 
 	void undoNullMove() {
-		BoardStateInformation formerStatus = boardStates.back();
 		boardStates.erase(boardStates.end() - 1);
 
 		currentPlayer = currentPlayer % 2 + 1;
@@ -829,7 +828,8 @@ private:
 			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
 			if (emptyArea == 0ull) {
 				// Check that no enemy pieces are attacking there
-				uint64_t areaWithoutAttacksMask = relevantRowMask & ~(1ull << (square - 3)) | (1ull << square);
+				uint64_t areaWithoutAttacksMask = relevantRowMask & ~(1ull << (square - 3));
+				areaWithoutAttacksMask |= (1ull << square);
 				generateAttacksV2(otherPlayer);
 
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
@@ -848,7 +848,6 @@ private:
 
 	uint64_t generatePawnCaptures(int square, int wantedPlayer) {
 		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
-		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 
 		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
 		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
@@ -867,7 +866,6 @@ private:
 
 	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
-		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
 		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 
 		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];

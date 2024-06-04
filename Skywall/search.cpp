@@ -149,7 +149,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
-		for (size_t j = i + 1; j < allMoves.size(); j++) {
+		for (uint8_t j = i + 1; j < allMoves.size(); j++) {
 			if (moveScores[j] > moveScores[i]) {
 				int tmp = moveScores[j];
 				moveScores[j] = moveScores[i];
@@ -162,7 +162,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		Move move = allMoves[i];
-		bool importantMoves = (board.isCapture(move) || move.getFlag() > 1 && move.getFlag() < 6);
+		bool importantMoves = (board.isCapture(move) || move.isPromotion());
 
 		// Pruning moves within the loop
 		if (futilePruning && !importantMoves && i > 0) {
@@ -218,7 +218,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
 
 					killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
-					killerMoves[plyFromRoot][1] == move;
+					killerMoves[plyFromRoot][1] = move;
 				}
 				break;
 			}

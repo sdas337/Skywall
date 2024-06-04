@@ -172,7 +172,6 @@ vector<uint64_t> indexList;
 uint64_t generateSlidingMoveBitboard(int square, int pieceType, uint64_t blockerBitboard) {
 	uint64_t slidingMoveBitboard = 0ull;
 
-	int movesGenerated = 0;
 	int startMoveTypes = 0;
 	int endMoveTypes = 8;
 
