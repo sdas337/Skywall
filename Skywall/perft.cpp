@@ -78,12 +78,7 @@ void importPerftTest() {
 
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
-	//customPos = FENs[1];
-	//customPos = "rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1";
-	//customPos = "k7/8/8/8/6Pp/8/K7/8 w - - 0 2";
-	//customPos = "k7/8/8/8/6Pp/K7/8/8 b - - 1 2";
-	//customPos = "k7/8/8/8/6P1/K6p/8/8 w - - 0 3";
-
+	
 	testDepth = 1;
 	testBoard.loadBoardFromFen(customPos);
 

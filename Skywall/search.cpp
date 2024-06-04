@@ -250,8 +250,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	return alpha;
 }
 
-Move searchBoard(Board &relevantBoard, int time) {
-	
+Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 64; j++) {
 			for (int k = 0; k < 64; k++) {
@@ -271,12 +270,12 @@ Move searchBoard(Board &relevantBoard, int time) {
 	
 	maxTimeForMove = time / 30;
 
-	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
+	cout << "Depth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
 
-	for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < 64;) {
+	for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < maxDepth;) {
 		int score = negamax(chosenDepth, 0, alpha, beta, true);
 
 		auto end = chrono::high_resolution_clock::now();
@@ -290,7 +289,7 @@ Move searchBoard(Board &relevantBoard, int time) {
 		else if (score >= beta)
 			beta += 70;
 		else {
-			cout << duration << " ms\t\t";
+			//cout << duration << " ms\t\t";
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";
