@@ -42,7 +42,7 @@ int squareNameToValue(string square) {
 void setupLMR() {
     for (int depth = 1; depth < 256; depth++) {
         for (int moveCount = 1; moveCount < 256; moveCount++) {
-            lmrReductions[depth][moveCount] = 1;
+            lmrReductions[depth][moveCount] = 2;
             //lmrReductions[depth][moveCount] = (int)(0.5 + log(depth) * log(moveCount) * 0.20);
         }
     }

@@ -187,7 +187,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 		}
 		else {
-			currentScore = -negamax(newDepth - 1 - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
+			currentScore = -negamax(newDepth - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
 
 			if (currentScore > alpha && currentScore < beta) {
 				currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
