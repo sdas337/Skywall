@@ -31,6 +31,32 @@ void testing() {
 
 }
 
+void bench(int depth) {
+	importPerftTest();
+
+	auto start = chrono::high_resolution_clock::now();
+
+	for (int line = 0; line < 128; line++) {
+		for (int i = 0; i < TT_size; i++)
+			transpositionTable[i] = TTentry();
+
+		printf("Position %d\n", line);
+		testBoard.loadBoardFromFen(FENs[line]);
+
+		searchBoard(testBoard, 1000 * 60 * 60, depth);
+
+		printf("\n");
+
+		testBoard.nodes = 0ull;
+	}
+
+	auto stop = chrono::high_resolution_clock::now();
+
+	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	cout << duration.count() << " milliseconds\n";
+
+}
+
 void positionHandling(vector<string> &instruction) {
 	auto movesIndex = find(instruction.begin(), instruction.end(), "moves");
 
@@ -197,9 +223,9 @@ int main()
 	initEvalTables();
 
 	//testing();
-	//uciHandling();
+	uciHandling();
 
-	bench(10);
+	//bench(10);
 
 	//bench(19);
 
