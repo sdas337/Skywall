@@ -226,11 +226,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 
 	int boundType = 0;
-	if (alpha >= beta) {
+	if (bestScore >= beta) {
 		boundType = 2;
 	}
 	else {
-		if (alpha > origAlpha) {
+		if (bestScore > origAlpha) {
 			boundType = 4;
 		}
 		else {
@@ -242,11 +242,11 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		bestMove = transpositionTable[currentHash % TT_size].m;
 	}
 
-	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, alpha, depth, boundType);
+	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
 	board.ttEntries++;
 	//cout << "Added move " << bestMove.printMove() << " to the transposition table.\n";
 
-	return alpha;
+	return bestScore;
 }
 
 Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
