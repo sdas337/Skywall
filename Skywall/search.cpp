@@ -144,7 +144,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
 
-	int lateMovePruningQuiets[5] = {0, 7, 14, 21, 28};
+	int lateMovePruningQuiets[5] = {0, 6, 12, 18, 24};
 	int lmpMoves = 100;
 	if (depth < 5) {
 		//lmpMoves = 4 + depth * depth;
@@ -283,7 +283,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	return bestScore;
 }
 
-Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
+Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	/*for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 64; j++) {
 			for (int k = 0; k < 64; k++) {
@@ -301,7 +301,8 @@ Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
 	maxEval = 0;
 	moveToPlay.rawValue = 0;
 	
-	maxTimeForMove = time / 30;
+	maxTimeForMove = time / 2;
+	int softTimeBound = 0.6 * (time / 20 + inc * 0.75);
 
 	cout << "Depth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
 
@@ -313,7 +314,7 @@ Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
 
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
-		if (duration > maxTimeForMove)
+		if (duration > softTimeBound)
 			break;
 
 

@@ -43,7 +43,7 @@ void bench(int depth) {
 		printf("Position %d\n", line);
 		testBoard.loadBoardFromFen(FENs[line]);
 
-		searchBoard(testBoard, 1000 * 60 * 60, depth);
+		searchBoard(testBoard, 1000 * 60 * 60, 0, depth);
 
 		printf("\n");
 
@@ -162,13 +162,13 @@ void instructionHandling(string instruction) {
 		int time = 0;
 
 		if (mainBoard.currentPlayer == 1) {
-			time = wtime + inc;
+			time = wtime;
 		}
 		else {
-			time = btime + inc;
+			time = btime;
 		}
 
-		Move result = searchBoard(mainBoard, time, 64);
+		Move result = searchBoard(mainBoard, time, inc, 64);
 
 		if (result.getRawValue() == 0) {
 			ofstream file("../../../testFiles/debugLogs.txt", ofstream::out | ofstream::app);
