@@ -73,8 +73,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	if (!pvNode && currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
 		if (currentEntry.flag == 4 ||	// exact score
-		(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
-		(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
+			(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
+			(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
 			board.lookups++;
 			return currentEntry.score;
 		}
@@ -125,7 +125,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score = 8000000;
 		}
 		else if (board.isCapture(allMoves[i])) {
-			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - board.rawBoard[allMoves[i].getStartSquare()] % 8;
+			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
 		}
 		else {
 			if (killerMoves[plyFromRoot][1] == allMoves[i] || killerMoves[plyFromRoot][0] == allMoves[i]) {
@@ -139,10 +139,17 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		moveScores[i] = score;
 	}
 
-	Move bestMove = Move(0,0,0);
+	Move bestMove = Move(0, 0, 0);
 	int newDepth = depth - 1, currentScore, origAlpha = alpha;
 
 	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
+
+	int lateMovePruningQuiets[5] = {0, 7, 14, 21, 28};
+	int lmpMoves = 100;
+	if (depth < 5) {
+		//lmpMoves = 4 + depth * depth;
+		lmpMoves = 2 + lateMovePruningQuiets[depth];
+	}
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
@@ -168,6 +175,18 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		if (futilePruning && !importantMoves && i > 0) {
 			break;
 		}
+
+		// Late Move Pruning
+		/*if (!importantMoves) {
+			if (!pvNode && depth <= 4) {
+				if (lmpMoves == 0) {
+					break;
+				}
+				else {
+					lmpMoves--;
+				}
+			}
+		}*/
 
 		board.makeMove(move);
 		board.nodes++;
@@ -213,12 +232,27 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			if (alpha >= beta) {	// Fail High
 				if (!qsearch && !board.isCapture(move)) {
 					//History and killer move location
-					historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] += depth * depth;
-
-					maxHistory = max(maxHistory, historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()]);
-
 					killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
 					killerMoves[plyFromRoot][1] = move;
+
+					int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
+
+					int bonus = min(1896, 4 * depth * depth + 120 * depth - 120);
+					bonus = bonus - value * abs(bonus) / 16384;
+					value += bonus;
+
+					maxHistory = max(maxHistory, value);
+
+					for (int z = 0; z < i; z++) {
+						move = allMoves[z];
+						if (!board.isCapture(move)) {
+							int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
+
+							int malus = -min(1896, 4 * depth * depth + 120 * depth - 120);
+							malus = malus - value * abs(malus) / 16384;
+							value += malus;
+						}
+					}
 				}
 				break;
 			}
@@ -250,13 +284,13 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 }
 
 Move searchBoard(Board &relevantBoard, int time, int maxDepth) {
-	for (int i = 0; i < 2; i++) {
+	/*for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 64; j++) {
 			for (int k = 0; k < 64; k++) {
 				historyTable[i][j][k] = 0ull;
 			}
 		}
-	}
+	}*/
 	
 	for (int i = 0; i < 1024; i++) {
 		killerMoves[i][0].rawValue = 0;
