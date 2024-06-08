@@ -140,7 +140,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 
 	Move bestMove = Move(0, 0, 0);
-	int newDepth = depth - 1, currentScore, origAlpha = alpha;
+	int currentScore, origAlpha = alpha;
 
 	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
 
@@ -197,19 +197,25 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		if (tmpCheckStatus)
 			extensions = 1;
 
+		int newDepth = depth - 1 + extensions;
+
 		// Late Move Reduction
 		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= 6 && depth > 2) {
 			reductions = lmrReductions[depth][i];
 		}
 		
 		if (i == 0) {
-			currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
+			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 		}
 		else {
-			currentScore = -negamax(newDepth - reductions + extensions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
+			currentScore = -negamax(newDepth - reductions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
 
-			if (currentScore > alpha && currentScore < beta) {
-				currentScore = -negamax(newDepth + extensions, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
+			if (currentScore > alpha && reductions > 0) {
+				currentScore = -negamax(newDepth, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
+			}
+
+			if (currentScore > alpha && pvNode) {
+				currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 			}
 		}
 
