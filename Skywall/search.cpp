@@ -108,7 +108,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
+	vector<Move> allMoves;
+	
+	allMoves = board.generateLegalMovesV2(qsearch);
 
 	if (!qsearch && allMoves.size() == 0) {
 		if (inCheck)
@@ -121,17 +123,20 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	for (size_t i = 0; i < moveScores.size(); i++) {
 		int score = 0;
 
-		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {
+		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
 			score = 8000000;
 		}
-		else if (board.isCapture(allMoves[i])) {
+		else if (board.isCapture(allMoves[i])) {	// MVV-LVA
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
 		}
 		else {
-			if (killerMoves[plyFromRoot][1] == allMoves[i] || killerMoves[plyFromRoot][0] == allMoves[i]) {
+			if (killerMoves[plyFromRoot][0] == allMoves[i]) {	// Killer Moves
 				score = 450000;
 			}
-			else {
+			else if (killerMoves[plyFromRoot][1] == allMoves[i]) {
+				score = 440000;
+			}
+			else {	// History
 				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
 			}
 		}
@@ -188,6 +193,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		board.makeMove(move);
+
 		board.nodes++;
 		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
 		int extensions = 0, reductions = 0;
@@ -203,7 +209,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			reductions = lmrReductions[depth][i];
 		}
 		
-		if (i == 0) {
+		if (i == 0 || qsearch) {
 			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
 		}
 		else {
@@ -280,9 +286,12 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	if (boundType == 1) {
 		bestMove = transpositionTable[currentHash % TT_size].m;
 	}
+	if (transpositionTable[currentHash % TT_size].depth <= 0) {
+		board.ttEntries++;
+	}
 
 	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
-	board.ttEntries++;
+	
 	//cout << "Added move " << bestMove.printMove() << " to the transposition table.\n";
 
 	return bestScore;
@@ -307,9 +316,11 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	moveToPlay.rawValue = 0;
 	
 	maxTimeForMove = time / 2;
+	//maxTimeForMove = time / 30;
 	int softTimeBound = 0.6 * (time / 20 + inc * 0.75);
+	//softTimeBound = time / 30;
 
-	cout << "Depth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
+	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
@@ -328,7 +339,7 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		else if (score >= beta)
 			beta += 70;
 		else {
-			//cout << duration << " ms\t\t";
+			cout << duration << " ms\t\t";
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";

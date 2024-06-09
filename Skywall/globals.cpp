@@ -43,7 +43,8 @@ void setupLMR() {
     for (int depth = 1; depth < 256; depth++) {
         for (int moveCount = 1; moveCount < 256; moveCount++) {
             lmrReductions[depth][moveCount] = 2;
-            //lmrReductions[depth][moveCount] = (int)(0.5 + log(depth) * log(moveCount) * 0.20);
+            // negligible difference between the duo
+            //lmrReductions[depth][moveCount] = (int)(0.77 + log(depth) * log(moveCount) / 2.26);
         }
     }
 }
