@@ -144,11 +144,12 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
 
-	int lateMovePruningQuiets[5] = {0, 6, 12, 18, 24};
+	int lateMovePruningQuiets[5] = {2, 8, 15, 22, 29};
 	int lmpMoves = 100;
+	int quietNodes = 0;
 	if (depth < 5) {
 		//lmpMoves = 4 + depth * depth;
-		lmpMoves = 2 + lateMovePruningQuiets[depth];
+		lmpMoves = lateMovePruningQuiets[depth];
 	}
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
@@ -177,16 +178,14 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		// Late Move Pruning
-		/*if (!importantMoves) {
+		if (!importantMoves) {
 			if (!pvNode && depth <= 4) {
-				if (lmpMoves == 0) {
+				if (quietNodes > lmpMoves) {
 					break;
 				}
-				else {
-					lmpMoves--;
-				}
 			}
-		}*/
+			quietNodes++;
+		}
 
 		board.makeMove(move);
 		board.nodes++;
