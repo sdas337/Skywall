@@ -18,8 +18,8 @@ void testing() {
 	importPerftTest();
 	printf("Beginning mass perft test.\n");
 	auto start = chrono::high_resolution_clock::now();
-	completePerftTest();
-	//perftTest();
+	//completePerftTest();
+	perftTest();
 	auto stop = chrono::high_resolution_clock::now();
 
 	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
@@ -112,6 +112,26 @@ void positionHandling(vector<string> &instruction) {
 	return;
 }
 
+void optionHandling(string instruction) {
+	vector<string> splitString = split(instruction, ' ');
+
+	if (splitString[2] == "Hash") {
+		// One day will do
+	}
+	else {	// Tunables
+		for (auto toTune : allTunables) {
+			if (toTune->name == splitString[2]) {
+				toTune->value = stoi(splitString[4]);
+
+				if (toTune->name == "lmrBase" || toTune->name == "lmrDivisor") {
+					setupLMR();
+				}
+			}
+		}
+	}
+	
+}
+
 void instructionHandling(string instruction) {
 	vector<string> splitString = split(instruction, ' ');
 
@@ -196,13 +216,16 @@ void instructionHandling(string instruction) {
 
 		cout << "\n";
 	}
+	else if (splitString[0] == "setoption") {
+		optionHandling(instruction);
+	}
 }
 
 void uciHandling() {
 
 	string instruction;
 	while (true) {
-		//ofstream file("../../../testFiles/debugLogs.txt", ofstream::out | ofstream::app);
+		//ofstream file("../../debugLogs.txt", ofstream::out | ofstream::app);
 		getline(cin, instruction);
 		//file << instruction << "\n";
 		//file.close();
@@ -221,20 +244,22 @@ void uciHandling() {
 int main()
 {
 	initEvalTables();
+	setupLMR();
 
 	//testing();
+	//outputTunableJSON();
 	uciHandling();
 
 	//bench(10);
 
-	//bench(19);
+	//bench(15);
 
 	//mainBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";
 
 	//testEval();
 
-	//searchBoard(mainBoard, 1000 * 8 * 60, 64);
+	//searchBoard(mainBoard, 1000 * 480, 0, 15);
 
 	//movegenBenchmark();
 

@@ -576,7 +576,6 @@ public:
 		precomputeDistances();
 		generateMagics();
 		generateZobristNumbers();
-		setupLMR();
 
 		string startingBoardPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 		loadBoardFromFen(startingBoardPos);

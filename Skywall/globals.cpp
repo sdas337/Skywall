@@ -14,6 +14,20 @@ int popLSB(uint64_t& bitboard) {
     return lsb;
 }
 
+// Sourced from Clarity
+void outputTunableJSON() {
+    std::cout << "{\n";
+    for (TuneValue* tunable : allTunables) {
+        std::cout << "   \"" << tunable->name << "\": {\n";
+        std::cout << "      \"value\": " << tunable->value << "," << std::endl;
+        std::cout << "      \"min_value\": " << tunable->min << "," << std::endl;
+        std::cout << "      \"max_value\": " << tunable->max << "," << std::endl;
+        std::cout << "      \"step\": " << tunable->step << std::endl;
+        std::cout << "   },\n";
+    }
+    std::cout << "}\n";
+}
+
 vector<string> split(const string word, const char seperator) {
     stringstream stream(word);
     string segment;
@@ -42,8 +56,12 @@ int squareNameToValue(string square) {
 void setupLMR() {
     for (int depth = 1; depth < 256; depth++) {
         for (int moveCount = 1; moveCount < 256; moveCount++) {
-            lmrReductions[depth][moveCount] = 2;
-            //lmrReductions[depth][moveCount] = (int)(0.5 + log(depth) * log(moveCount) * 0.20);
+            //lmrReductions[depth][moveCount] = 2;
+            // negligible difference between the duo
+
+            double base = (double)lmrBase.value / 100.0;
+            double div = (double)lmrDivisor.value / 100.0;
+            lmrReductions[depth][moveCount] = (int)(base + log(depth) * log(moveCount) / div);
         }
     }
 }

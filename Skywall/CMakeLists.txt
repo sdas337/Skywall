@@ -12,10 +12,14 @@ endif()
 project ("Skywall")
 
 # Add source to this project's executable.
-add_executable (Skywall "uci.cpp" "uci.h" "globals.h" "globals.cpp")
+add_executable (Skywall "uci.cpp" "uci.h" "globals.h" "globals.cpp" "tunable.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Skywall PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: Add tests and install targets if needed.
+if(MSVC)
+  #target_compile_options(Skywall PUBLIC "/O2")
+  #target_link_options(Skywall PUBLIC "/INCREMENTAL")
+endif()

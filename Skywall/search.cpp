@@ -1,4 +1,5 @@
 #include "globals.h"
+
 #include "board.cpp"
 #include "eval.cpp"
 
@@ -92,14 +93,14 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 	else if (!pvNode && !inCheck) {	// Pruning Technique Location
 		// Testing out rf pruning
-		int rfPruningMargin = 95 * depth;
-		if (depth <= 5 && eval - rfPruningMargin >= beta) {
+		int rfPruningMargin = rfPruningBase.value * depth;
+		if (depth <= rfpDepth.value && eval - rfPruningMargin >= beta) {
 			return eval - rfPruningMargin;
 		}
 
-		if (nullMovePruningAllowed && depth >= 3) {
+		if (nullMovePruningAllowed && depth >= nmpDepth.value) {
 			board.makeNullMove();
-			int nullMoveScore = -negamax(depth - 3 - depth / 5, plyFromRoot + 1, -beta, -alpha, false);
+			int nullMoveScore = -negamax(depth - nmpBaseReduction.value - depth / nmpScaleReduction.value, plyFromRoot + 1, -beta, -alpha, false);
 			board.undoNullMove();
 
 			if (nullMoveScore >= beta) {
@@ -108,7 +109,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	vector<Move> allMoves = board.generateLegalMovesV2(qsearch);
+	vector<Move> allMoves;
+	
+	allMoves = board.generateLegalMovesV2(qsearch);
 
 	if (!qsearch && allMoves.size() == 0) {
 		if (inCheck)
@@ -121,17 +124,17 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	for (size_t i = 0; i < moveScores.size(); i++) {
 		int score = 0;
 
-		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {
+		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
 			score = 8000000;
 		}
-		else if (board.isCapture(allMoves[i])) {
+		else if (board.isCapture(allMoves[i])) {	// MVV-LVA
 			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
 		}
 		else {
-			if (killerMoves[plyFromRoot][1] == allMoves[i] || killerMoves[plyFromRoot][0] == allMoves[i]) {
+			if (killerMoves[plyFromRoot][0] == allMoves[i] || killerMoves[plyFromRoot][1] == allMoves[i]) {	// Killer Moves
 				score = 450000;
 			}
-			else {
+			else {	// History
 				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
 			}
 		}
@@ -142,14 +145,15 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	Move bestMove = Move(0, 0, 0);
 	int currentScore, origAlpha = alpha;
 
-	bool futilePruning = depth <= 8 && (eval + 150 * depth) <= alpha;
+	bool futilePruning = depth <= fpDepth.value && (eval + fpScale.value * depth + fpMargin.value) <= alpha;
 
-	int lateMovePruningQuiets[5] = {2, 8, 15, 22, 29};
+	//int lateMovePruningQuiets[5] = {2, 8, 15, 22, 29};
 	int lmpMoves = 100;
 	int quietNodes = 0;
-	if (depth < 5) {
+	if (depth < lmpDepth.value) {
 		//lmpMoves = 4 + depth * depth;
-		lmpMoves = lateMovePruningQuiets[depth];
+		lmpMoves = lmpScale.value * depth + lmpBase.value;
+		//lmpMoves = lateMovePruningQuiets[depth];
 	}
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
@@ -179,7 +183,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		// Late Move Pruning
 		if (!importantMoves) {
-			if (!pvNode && depth <= 4) {
+			if (!pvNode && depth < lmpDepth.value) {
 				if (quietNodes > lmpMoves) {
 					break;
 				}
@@ -188,6 +192,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		board.makeMove(move);
+
 		board.nodes++;
 		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
 		int extensions = 0, reductions = 0;
@@ -199,7 +204,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		int newDepth = depth - 1 + extensions;
 
 		// Late Move Reduction
-		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= 6 && depth > 2) {
+		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= lmrMoveCount.value && depth > lmrDepth.value) {
 			reductions = lmrReductions[depth][i];
 		}
 		
@@ -242,7 +247,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 					int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
 
-					int bonus = min(1896, 4 * depth * depth + 120 * depth - 120);
+					int bonus = min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
 					bonus = bonus - value * abs(bonus) / 16384;
 					value += bonus;
 
@@ -253,7 +258,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 						if (!board.isCapture(move)) {
 							int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
 
-							int malus = -min(1896, 4 * depth * depth + 120 * depth - 120);
+							int malus = -min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
 							malus = malus - value * abs(malus) / 16384;
 							value += malus;
 						}
@@ -280,9 +285,12 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	if (boundType == 1) {
 		bestMove = transpositionTable[currentHash % TT_size].m;
 	}
+	if (transpositionTable[currentHash % TT_size].depth <= 0) {
+		board.ttEntries++;
+	}
 
 	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
-	board.ttEntries++;
+	
 	//cout << "Added move " << bestMove.printMove() << " to the transposition table.\n";
 
 	return bestScore;
@@ -306,10 +314,12 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	maxEval = 0;
 	moveToPlay.rawValue = 0;
 	
-	maxTimeForMove = time / 2;
-	int softTimeBound = 0.6 * (time / 20 + inc * 0.75);
+	maxTimeForMove = time / hardTC.value;
+	//maxTimeForMove = time / 30;
+	int softTimeBound = (int)( ((double)tcMul.value / 100) * (time * timeMul.value / 100 + inc * incMul.value / 100));
+	//softTimeBound = time / 30;
 
-	cout << "Depth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
+	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
@@ -324,11 +334,11 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 
 
 		if (score <= alpha)
-			alpha -= 70;
+			alpha -= aspDelta.value;
 		else if (score >= beta)
-			beta += 70;
+			beta += aspDelta.value;
 		else {
-			//cout << duration << " ms\t\t";
+			cout << duration << " ms\t\t";
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";
@@ -338,8 +348,8 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 			cout << board.nodes << "\n";
 
 			chosenDepth++;
-			alpha = score - 15;
-			beta = score + 15;
+			alpha = score - aspWindow.value;
+			beta = score + aspWindow.value;
 
 		}
 	}
