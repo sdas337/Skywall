@@ -1,6 +1,4 @@
-﻿#pragma once
-
-// uci.cpp : Defines the entry point for the application..
+﻿// uci.cpp : Defines the entry point for the application..
 // Responsible for UCI handling
 
 #include "uci.h"
@@ -174,7 +172,7 @@ void instructionHandling(string instruction) {
 			ofstream file("../../../testFiles/debugLogs.txt", ofstream::out | ofstream::app);
 			vector<Move> allMoves = mainBoard.generateLegalMovesV2(false);
 			for (Move m : allMoves) {
-				file << result.printMove() + "\n";
+				file << m.printMove() + "\n";
 			}
 
 			file.close();
@@ -234,7 +232,7 @@ int main()
 
 	//testEval();
 
-	//searchBoard(mainBoard, 1000 * 8, 0, 2);
+	//searchBoard(mainBoard, 1000 * 8, 0, 15);
 
 	//movegenBenchmark();
 
