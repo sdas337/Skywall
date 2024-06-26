@@ -9,7 +9,7 @@ Board testBoard;
 
 int testDepth;
 
-int DEBUG = 1;
+int DEBUG = 0;
 
 uint64_t moveChecker(int depth, bool testingCaptures) {
 	uint64_t nodes = 0;
@@ -23,13 +23,20 @@ uint64_t moveChecker(int depth, bool testingCaptures) {
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
 
+		//cout << testBoard.zobristHashCalc() << "\n";
+
 		testBoard.makeMove(move);
+
+		/*if (testBoard.boardStates.back().zobristHash != testBoard.zobristHashCalc()) {
+			cout << testBoard.boardStates.back().zobristHash << "\n";
+			cout << testBoard.zobristHashCalc() << "\n";
+			cout << "Error error, Zobrist hash break" << "\n";
+		}*/
 
 		uint64_t movesMade = moveChecker(depth - 1, testingCaptures);
 		nodes += movesMade;
 
 		testBoard.undoMove(move);
-
 
 		if (DEBUG == 1 && depth == testDepth) {
 			cout << move.printMove() << " - " << movesMade << "\n";
@@ -79,11 +86,13 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 4;
+	testDepth = 5;
 	testBoard.loadBoardFromFen(FENs[1]);
+	//testBoard.loadBoardFromFen("r3k1Rr/8/8/8/8/8/8/R3K3 b Qkq - 1 1");
+	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R2K3R w kq - 0 2");
 
 	// breaks here
-	uint64_t result = moveChecker(testDepth, true);
+	uint64_t result = moveChecker(testDepth, false);
 
 
 	printf("%llu legal moves\n", result);

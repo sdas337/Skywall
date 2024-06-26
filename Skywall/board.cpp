@@ -118,12 +118,19 @@ public:
 		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][startSquare];
 		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][targetSquare];
 
+		//cout << zobristHashCalc() << "\n";
+
 		newInfo.fiftyMoveCount++;
-		if (capturedPiece || (rawBoard[startSquare] & 7) == 2) {
+		if (capturedPiece || (movingPiece & 7) == 2) {
 			newInfo.fiftyMoveCount = 0;
-			newInfo.zobristHash ^= zobPieces[currentPlayer][newInfo.capturedPieceType % 8][targetSquare];
+			if (capturedPiece) {
+				newInfo.zobristHash ^= zobPieces[(movingPiece / 8 % 2) + 1][newInfo.capturedPieceType % 8][pieceRemovalSquare];
+			}
 		}
 
+		if (newInfo.enPassantSquare != 64) {
+			newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
+		}
 
 		newInfo.enPassantSquare = 64;
 
@@ -132,7 +139,6 @@ public:
 			newInfo.enPassantSquare = pieceRemovalSquare;
 			newInfo.zobristHash ^= zobEnPassant[pieceRemovalSquare % 8];
 		}
-
 		// Handle Castling
 		else if (flags == 6) {
 			if (targetSquare % 8 > 3) {	// Queenside vs Kingside
@@ -144,6 +150,9 @@ public:
 
 				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8 + 7));
 				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 5));
+
+				newInfo.zobristHash ^= zobPieces[currentPlayer][5][(targetSquare / 8) * 8 + 7];
+				newInfo.zobristHash ^= zobPieces[currentPlayer][5][(targetSquare / 8) * 8 + 5];
 			} else {
 				rawBoard[(targetSquare / 8) * 8 + 3] = rawBoard[(targetSquare / 8) * 8];
 				rawBoard[(targetSquare / 8) * 8] = 0;
@@ -153,14 +162,19 @@ public:
 
 				pieceBoards[5] &= ~(1ull << ((targetSquare / 8) * 8));
 				pieceBoards[5] |= (1ull << ((targetSquare / 8) * 8 + 3));
+
+				newInfo.zobristHash ^= zobPieces[currentPlayer][5][(targetSquare / 8) * 8 + 3];
+				newInfo.zobristHash ^= zobPieces[currentPlayer][5][(targetSquare / 8) * 8];
 			}
 
 			// Remove castling rights for that side
+			if(newInfo.castlingRights[2 * currentPlayer - 2])
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
+			if(newInfo.castlingRights[2 * currentPlayer - 1])
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
+
 			newInfo.castlingRights[2 * currentPlayer - 2] = false;
 			newInfo.castlingRights[2 * currentPlayer - 1] = false;
-
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
 		}
 
 		// Handle promotion
@@ -176,31 +190,31 @@ public:
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
+			if (newInfo.castlingRights[2 * currentPlayer - 2])
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
+			if (newInfo.castlingRights[2 * currentPlayer - 1])
+				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
+
 			newInfo.castlingRights[2 * currentPlayer - 2] = false;
 			newInfo.castlingRights[2 * currentPlayer - 1] = false;
-
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
 
 			kingLocations[currentPlayer] = targetSquare;
 		}
 
 		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
+				if(newInfo.castlingRights[2 * currentPlayer - 2])
+					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
 				newInfo.castlingRights[2 * currentPlayer - 2] = false;
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
 			}
-			else {
+			else{
+				if(newInfo.castlingRights[2 * currentPlayer - 1])
+					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
 				newInfo.castlingRights[2 * currentPlayer - 1] = false;
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
 			}
 		}
 
 		plyCount++;
-
-		if (boardStates.back().zobristHash == newInfo.zobristHash) {
-			printf("ERROR, ERROR. ZOBRIST HASH DID NOT CHANGE AFTER A MOVE.\n");
-		}
 
 		newInfo.zobristHash ^= zobColor;
 
@@ -419,7 +433,7 @@ public:
 
 	void loadBoardFromFen(string fen) {
 		bool castlingRights[4] = { 0, 0, 0, 0 };
-		int enPassantSquare = -1;
+		int enPassantSquare = 64;
 		int fiftyMoveCount = 0;
 
 		int row = 7;
@@ -618,6 +632,60 @@ public:
 
 	}
 
+	uint64_t zobristHashCalc() {
+		uint64_t rawHash = 0ull;
+		for (int wantedPlayer = 1; wantedPlayer < 3; wantedPlayer++) {
+			uint64_t kingBoard = occupiedBoard[wantedPlayer] & pieceBoards[1];
+			uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
+			uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
+			uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
+			uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
+			uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
+
+			rawHash ^= zobPieces[wantedPlayer][1][popLSB(kingBoard)];
+
+			while (pawnBoard != 0) {
+				int square = popLSB(pawnBoard);
+				rawHash ^= zobPieces[wantedPlayer][2][square];
+			}
+
+			while (knightBoard != 0) {
+				int square = popLSB(knightBoard);
+				rawHash ^= zobPieces[wantedPlayer][3][square];
+			}
+
+			while (bishopBoard != 0) {
+				int square = popLSB(bishopBoard);
+				rawHash ^= zobPieces[wantedPlayer][4][square];
+			}
+
+			while (rookBoard != 0) {
+				int square = popLSB(rookBoard);
+				rawHash ^= zobPieces[wantedPlayer][5][square];
+			}
+
+			while (queenBoard != 0) {
+				int square = popLSB(queenBoard);
+				rawHash ^= zobPieces[wantedPlayer][6][square];
+			}
+		}
+
+		if (currentPlayer == 2) {
+			rawHash ^= zobColor;
+		}
+
+		for (int i = 0; i < 4; i++) {
+			if (boardStates.back().castlingRights[i]) {
+				rawHash ^= zobCastle[i];
+			}
+		}
+
+		if (boardStates.back().enPassantSquare != 64) {
+			rawHash ^= zobEnPassant[boardStates.back().enPassantSquare % 8];
+		}
+
+		return rawHash;
+	}
 
 private:
 	int directions[8] = { 8, -8, -1, 1, -7, 7, -9, 9 };
@@ -656,53 +724,7 @@ private:
 	}
 
 	void calculateZobristHash() {
-		uint64_t rawHash = 0ull;
-		for (int wantedPlayer = 1; wantedPlayer < 3; wantedPlayer++) {
-			uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
-			uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
-			uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
-			uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
-			uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
-
-			rawHash ^= zobPieces[wantedPlayer][1][kingLocations[wantedPlayer]];
-
-			while (pawnBoard != 0) {
-				int square = popLSB(pawnBoard);
-				rawHash ^= zobPieces[wantedPlayer][2][square];				
-			}
-
-			while (knightBoard != 0) {
-				int square = popLSB(knightBoard);
-				rawHash ^= zobPieces[wantedPlayer][3][square];
-			}
-
-			while (bishopBoard != 0) {
-				int square = popLSB(bishopBoard);
-				rawHash ^= zobPieces[wantedPlayer][4][square];
-			}
-
-			while (rookBoard != 0) {
-				int square = popLSB(rookBoard);
-				rawHash ^= zobPieces[wantedPlayer][5][square];
-			}
-
-			while (queenBoard != 0) {
-				int square = popLSB(queenBoard);
-				rawHash ^= zobPieces[wantedPlayer][6][square];
-			}
-		}
-
-		if (currentPlayer == 2) {
-			rawHash ^= zobColor;
-		}
-
-		for (int i = 0; i < 4; i++) {
-			if (boardStates.back().castlingRights[i]) {
-				rawHash ^= zobCastle[i];
-			}
-		}
-
-		boardStates.back().zobristHash = rawHash;
+		boardStates.back().zobristHash = zobristHashCalc();
 	}
 
 	void precomputeDistances() {
