@@ -72,13 +72,18 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	if (!pvNode && currentEntry.zobristHash == currentHash && currentEntry.depth >= depth) {
-		if (currentEntry.flag == 4 ||	// exact score
-			(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
-			(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
-			board.lookups++;
-			return currentEntry.score;
+	if (currentEntry.zobristHash == currentHash) {
+		if (!pvNode && currentEntry.depth >= depth) {
+			if (currentEntry.flag == 4 ||	// exact score
+				(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
+				(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
+				board.lookups++;
+				return currentEntry.score;
+			}
 		}
+	}
+	else if (depth > 3) {	// Internal iterative reduction
+		depth--;
 	}
 
 	int eval = evaluate(board);
@@ -338,7 +343,7 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		else if (score >= beta)
 			beta += aspDelta.value;
 		else {
-			cout << duration << " ms\t\t";
+			//cout << duration << " ms\t\t";
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";
