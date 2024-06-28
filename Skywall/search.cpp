@@ -39,6 +39,7 @@ Board board;
 TTentry transpositionTable[TT_size];
 
 int historyTable[2][64][64];
+Move counterMoves[64][64];
 int maxHistory;
 
 
@@ -51,7 +52,7 @@ int maxEval;
 
 
 
-int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed) {
+int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
 
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
@@ -105,7 +106,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		if (nullMovePruningAllowed && depth >= nmpDepth.value) {
 			board.makeNullMove();
-			int nullMoveScore = -negamax(depth - nmpBaseReduction.value - depth / nmpScaleReduction.value, plyFromRoot + 1, -beta, -alpha, false);
+			int nullMoveScore = -negamax(depth - nmpBaseReduction.value - depth / nmpScaleReduction.value, plyFromRoot + 1, -beta, -alpha, false, Move());
 			board.undoNullMove();
 
 			if (nullMoveScore >= beta) {
@@ -138,6 +139,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		else {
 			if (killerMoves[plyFromRoot][0] == allMoves[i] || killerMoves[plyFromRoot][1] == allMoves[i]) {	// Killer Moves
 				score = 450000;
+			}
+			else if (allMoves[i] == counterMoves[priorMove.getStartSquare()][priorMove.getEndSquare()]) {	// Counter moves
+				score = 449000;
 			}
 			else {	// History
 				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
@@ -214,17 +218,17 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 		
 		if (i == 0) {
-			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
+			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
 		}
 		else {
-			currentScore = -negamax(newDepth - reductions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
+			currentScore = -negamax(newDepth - reductions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
 
 			if (currentScore > alpha && reductions > 0) {
-				currentScore = -negamax(newDepth, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed);
+				currentScore = -negamax(newDepth, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
 			}
 
 			if (currentScore > alpha && pvNode) {
-				currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed);
+				currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
 			}
 		}
 
@@ -249,6 +253,8 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 					//History and killer move location
 					killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
 					killerMoves[plyFromRoot][1] = move;
+
+					counterMoves[priorMove.getStartSquare()][priorMove.getEndSquare()] = move;	// counter moves
 
 					int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
 
@@ -315,6 +321,12 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		killerMoves[i][1].rawValue = 0;
 	}
 
+	for (int i = 0; i < 64; i++) {		// Reset counter moves between searches
+		for (int j = 0; j < 64; j++) {
+			counterMoves[i][j] = Move();
+		}
+	}
+
 	maxHistory = 0ull;
 	maxEval = 0;
 	moveToPlay.rawValue = 0;
@@ -330,7 +342,7 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	start = chrono::high_resolution_clock::now();
 
 	for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < maxDepth;) {
-		int score = negamax(chosenDepth, 0, alpha, beta, true);
+		int score = negamax(chosenDepth, 0, alpha, beta, true, Move());
 
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
