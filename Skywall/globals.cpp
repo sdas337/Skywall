@@ -28,6 +28,18 @@ void outputTunableJSON() {
     std::cout << "}\n";
 }
 
+void outputTunableOptions() {
+    for (TuneValue* tunable : allTunables) {
+        cout << "option name ";
+        std::cout << tunable->name;
+        cout << " type spin default ";
+        cout << tunable->value << " min ";
+        cout << tunable->min << " max ";
+        cout << tunable->max;
+        cout << "\n";
+    }
+}
+
 vector<string> split(const string word, const char seperator) {
     stringstream stream(word);
     string segment;

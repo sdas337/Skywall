@@ -18,6 +18,7 @@ using namespace std;
 int popLSB(uint64_t& bitboard);
 
 void outputTunableJSON();
+void outputTunableOptions();
 
 vector<string> split(const string, const char);
 

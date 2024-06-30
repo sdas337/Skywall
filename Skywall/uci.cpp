@@ -138,9 +138,10 @@ void instructionHandling(string instruction) {
 	if (instruction == "uci") {
 		cout << "id: name Skywall V0.0\n";
 		cout << "id: author Waterwall\n";
-		cout << "option name Hash type spin default 1 min 1 max 1\n";
+		cout << "option name Hash type spin default 1 min 1 max 64\n";
 		cout << "option name Threads type spin default 1 min 1 max 64\n";
 		cout << "option name SyzygyPath type string default <empty>\n";
+		outputTunableOptions();
 		cout << "uciok\n";
 	}
 	else if (splitString[0] == "isready") {
@@ -247,7 +248,7 @@ int main()
 	setupLMR();
 
 	//testing();
-	//outputTunableJSON();
+	//outputTunableOptions();
 	uciHandling();
 
 	//bench(10);
