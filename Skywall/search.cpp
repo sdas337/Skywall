@@ -50,22 +50,141 @@ Move moveToPlay;
 int maxTimeForMove = 0;
 int maxEval;
 
+int qsearch(int plyFromRoot, int alpha, int beta) {
+	uint64_t currentHash = board.boardStates.back().zobristHash;
+	TTentry currentEntry = transpositionTable[currentHash % TT_size];
+
+	bool pvNode = (beta - alpha) > 1;
+	int historyIndex = plyFromRoot % 2;
+	int bestScore = -999999;
+
+	// maybe check repeated pos
+
+	if (currentEntry.zobristHash == currentHash) {
+		if (!pvNode) {	// test qsearch without
+			if (currentEntry.flag == 4 ||	// exact score
+				(currentEntry.flag == 2 && currentEntry.score >= beta) ||	// lower bound of score, fail high
+				(currentEntry.flag == 1 && currentEntry.score <= alpha)) {	// upper bound, fail low
+				board.lookups++;
+				return currentEntry.score;
+			}
+		}
+	}
+
+	bestScore = evaluate(board);
+	maxEval = max(bestScore, maxEval);
+
+	if (bestScore >= beta) {
+		return bestScore;
+	}
+	alpha = max(alpha, bestScore);
+
+	vector<Move> allMoves;
+	allMoves = board.generateLegalMovesV2(true);
+
+	vector<int> moveScores(allMoves.size());
+	for (size_t i = 0; i < moveScores.size(); i++) {
+		int score = 0;
+
+		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
+			score = 8000000;
+		}
+		else {	// MVV-LVA
+			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
+		}
+
+		moveScores[i] = score;
+	}
+
+	Move bestMove = Move(0, 0, 0);
+	int currentScore, origAlpha = alpha;
+
+	for (uint8_t i = 0; i < allMoves.size(); i++) {
+		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
+			return 900000;
+
+		// Performing selection sort based on move scores above to order
+		for (uint8_t j = i + 1; j < allMoves.size(); j++) {
+			if (moveScores[j] > moveScores[i]) {
+				int tmp = moveScores[j];
+				moveScores[j] = moveScores[i];
+				moveScores[i] = tmp;
+
+				Move swap = allMoves[i];
+				allMoves[i] = allMoves[j];
+				allMoves[j] = swap;
+			}
+		}
+
+		Move move = allMoves[i];
+
+		board.makeMove(move);
+
+		board.nodes++;
+		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
+		int extensions = 0, reductions = 0;
+
+		currentScore = -qsearch(plyFromRoot + 1, -beta, -alpha);
+
+		board.undoMove(move);
+
+		//cout << move.printMove() << " has a score of " << currentScore << ". Depth is " << depth << "\n";
+
+		// new best move
+		if (currentScore > bestScore) {
+			bestScore = currentScore;
+			bestMove = move;
+
+			alpha = max(currentScore, alpha);
+
+			if (alpha >= beta) {	// Fail High
+				break;
+			}
+		}
+	}
+
+	int boundType = 0;
+	if (bestScore >= beta) {
+		boundType = 2;
+	}
+	else {
+		if (bestScore > origAlpha) {
+			boundType = 4;
+		}
+		else {
+			boundType = 1;
+		}
+	}
+
+	if (boundType == 1) {
+		bestMove = transpositionTable[currentHash % TT_size].m;
+	}
+	if (transpositionTable[currentHash % TT_size].depth <= 0) {
+		board.ttEntries++;
+	}
+
+	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, 0, boundType);
+
+	return bestScore;
+}
 
 
 int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
+	bool inCheck = board.sideInCheck(board.currentPlayer);
+	bool qsearchStatus = depth <= 0;
+
+	if (qsearchStatus && !inCheck) {
+		return qsearch(plyFromRoot, alpha, beta);
+	}
 
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
-	bool notRoot = plyFromRoot > 0;
-
-	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool pvNode = (beta - alpha) > 1;
-	bool qsearch = depth <= 0;
+	bool notRoot = plyFromRoot > 0;
 
 	int historyIndex = plyFromRoot % 2;
 	int bestScore = -999999;
-
 
 	if (notRoot) {
 		if (board.repeatedPositionCheck() || board.fiftyMoveCheck()) {
@@ -90,14 +209,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	int eval = evaluate(board);
 	maxEval = max(eval, maxEval);
 
-	if (qsearch) {
-		bestScore = eval;
-		if (bestScore >= beta) {
-			return bestScore;
-		}
-		alpha = max(alpha, bestScore);
-	}
-	else if (!pvNode && !inCheck) {	// Pruning Technique Location
+	if (!pvNode && !inCheck) {	// Pruning Technique Location
 		// Testing out rf pruning
 		int rfPruningMargin = rfPruningBase.value * depth;
 		if (depth <= rfpDepth.value && eval - rfPruningMargin >= beta) {
@@ -117,9 +229,9 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	vector<Move> allMoves;
 	
-	allMoves = board.generateLegalMovesV2(qsearch);
+	allMoves = board.generateLegalMovesV2(false);
 
-	if (!qsearch && allMoves.size() == 0) {
+	if (allMoves.size() == 0) {
 		if (inCheck)
 			return -900000 + plyFromRoot;
 		return 0;
@@ -151,7 +263,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		moveScores[i] = score;
 	}
 
-	Move bestMove = Move(0, 0, 0);
+	Move bestMove = Move();
 	int currentScore, origAlpha = alpha;
 
 	bool futilePruning = depth <= fpDepth.value && (eval + fpScale.value * depth + fpMargin.value) <= alpha;
@@ -249,7 +361,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 
 			if (alpha >= beta) {	// Fail High
-				if (!qsearch && !board.isCapture(move)) {
+				if (!board.isCapture(move)) {
 					//History and killer move location
 					killerMoves[plyFromRoot][0] = killerMoves[plyFromRoot][1];
 					killerMoves[plyFromRoot][1] = move;

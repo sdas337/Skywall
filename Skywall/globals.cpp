@@ -68,8 +68,6 @@ int squareNameToValue(string square) {
 void setupLMR() {
     for (int depth = 1; depth < 256; depth++) {
         for (int moveCount = 1; moveCount < 256; moveCount++) {
-            //lmrReductions[depth][moveCount] = 2;
-            // negligible difference between the duo
 
             double base = (double)lmrBase.value / 100.0;
             double div = (double)lmrDivisor.value / 100.0;
