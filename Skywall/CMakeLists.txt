@@ -20,6 +20,6 @@ endif()
 
 # TODO: Add tests and install targets if needed.
 if(MSVC)
-  #target_compile_options(Skywall PUBLIC "/O2")
-  #target_link_options(Skywall PUBLIC "/INCREMENTAL")
+  target_compile_options(Skywall PUBLIC "/O2")
+  target_link_options(Skywall PUBLIC "/INCREMENTAL")
 endif()
