@@ -39,6 +39,9 @@ Board board;
 TTentry transpositionTable[TT_size];
 
 int historyTable[2][64][64];
+int qhistoryTable[2][64][64][5];
+
+
 Move counterMoves[64][64];
 int maxHistory;
 
@@ -50,7 +53,7 @@ Move moveToPlay;
 int maxTimeForMove = 0;
 int maxEval;
 
-int qsearch(int plyFromRoot, int alpha, int beta) {
+int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % TT_size];
 
@@ -90,7 +93,9 @@ int qsearch(int plyFromRoot, int alpha, int beta) {
 			score = 8000000;
 		}
 		else {	// MVV-LVA
-			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
+			int victim = board.rawBoard[allMoves[i].getEndSquare()] % 8;
+			score += 500000 * (victim) - 20000 * (board.rawBoard[allMoves[i].getStartSquare()] % 8);
+			score += qhistoryTable[historyIndex][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()][victim - 2];
 		}
 
 		moveScores[i] = score;
@@ -124,7 +129,7 @@ int qsearch(int plyFromRoot, int alpha, int beta) {
 		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
 		int extensions = 0, reductions = 0;
 
-		currentScore = -qsearch(plyFromRoot + 1, -beta, -alpha);
+		currentScore = -qsearch(depth - 1, plyFromRoot + 1, -beta, -alpha);
 
 		board.undoMove(move);
 
@@ -138,6 +143,24 @@ int qsearch(int plyFromRoot, int alpha, int beta) {
 			alpha = max(currentScore, alpha);
 
 			if (alpha >= beta) {	// Fail High
+				int victim = board.rawBoard[move.getEndSquare()] % 8 - 2;
+
+				int& value = qhistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][victim];
+
+				int bonus = min(1589, 6 * depth * depth + 72 * depth - 105);
+				bonus = bonus - value * abs(bonus) / 16384;
+				value += bonus;
+
+				maxHistory = max(maxHistory, value);
+
+				for (int z = 0; z < i; z++) {
+					move = allMoves[z];
+					int& value = qhistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][board.rawBoard[move.getEndSquare()] % 8 - 2];
+
+					int malus = -min(1589, 6 * depth * depth + 72 * depth - 105);
+					malus = malus - value * abs(malus) / 16384;
+					value += malus;
+				}
 				break;
 			}
 		}
@@ -174,7 +197,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	bool qsearchStatus = depth <= 0;
 
 	if (qsearchStatus && !inCheck) {
-		return qsearch(plyFromRoot, alpha, beta);
+		return qsearch(depth, plyFromRoot, alpha, beta);
 	}
 
 	uint64_t currentHash = board.boardStates.back().zobristHash;
