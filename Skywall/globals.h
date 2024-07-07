@@ -63,6 +63,7 @@ extern TuneValue fpScale;
 extern TuneValue fpMargin;
 
 extern TuneValue lmpDepth;
+extern TuneValue lmpQuad;
 extern TuneValue lmpScale;
 extern TuneValue lmpBase;
 
@@ -76,6 +77,11 @@ extern TuneValue hstQuad;
 extern TuneValue hstLin;
 extern TuneValue hstConst;
 
+extern TuneValue qhstMin;
+extern TuneValue qhstQuad;
+extern TuneValue qhstLin;
+extern TuneValue qhstConst;
+
 extern TuneValue hardTC;
 extern TuneValue tcMul;
 extern TuneValue timeMul;
@@ -83,5 +89,8 @@ extern TuneValue incMul;
 
 extern TuneValue aspDelta;
 extern TuneValue aspWindow;
+
+extern TuneValue iirDepth;
+
 
 extern vector<TuneValue*> allTunables;

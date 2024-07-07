@@ -147,7 +147,7 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 
 				int& value = qhistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][victim];
 
-				int bonus = min(1589, 6 * depth * depth + 72 * depth - 105);
+				int bonus = min(qhstConst.value, qhstQuad.value * depth * depth + qhstLin.value * depth + qhstConst.value);
 				bonus = bonus - value * abs(bonus) / 16384;
 				value += bonus;
 
@@ -157,7 +157,7 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 					move = allMoves[z];
 					int& value = qhistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][board.rawBoard[move.getEndSquare()] % 8 - 2];
 
-					int malus = -min(1589, 6 * depth * depth + 72 * depth - 105);
+					int malus = -min(qhstConst.value, qhstQuad.value * depth * depth + qhstLin.value * depth + qhstConst.value);
 					malus = malus - value * abs(malus) / 16384;
 					value += malus;
 				}
@@ -225,7 +225,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			}
 		}
 	}
-	else if (depth > 3) {	// Internal iterative reduction
+	else if (depth > iirDepth.value) {	// Internal iterative reduction
 		depth--;
 	}
 
@@ -296,7 +296,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	int quietNodes = 0;
 	if (depth < lmpDepth.value) {
 		//lmpMoves = 4 + depth * depth;
-		lmpMoves = lmpScale.value * depth + lmpBase.value;
+		lmpMoves =  lmpQuad.value * depth * depth / 100  + lmpScale.value * depth + lmpBase.value;
 		//lmpMoves = lateMovePruningQuiets[depth];
 	}
 

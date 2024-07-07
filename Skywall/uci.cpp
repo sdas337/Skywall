@@ -248,7 +248,7 @@ int main()
 	setupLMR();
 
 	//testing();
-	//outputTunableOptions();
+	//outputTunableJSON();
 	uciHandling();
 
 	//bench(10);
