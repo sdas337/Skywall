@@ -255,7 +255,7 @@ int main()
 
 	//bench(15);
 
-	//mainBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+	//mainBoard.loadBoardFromFen("r1b1kbnr/ppppq1pp/2n2p2/4p3/3PPB2/5N2/PPP2PPP/RN1QKB1R w KQkq - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";
 	//cout << "Evaluation is " << speedEval(mainBoard) << "\n";
 

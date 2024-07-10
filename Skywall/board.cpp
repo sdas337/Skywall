@@ -320,12 +320,15 @@ public:
 			return true;
 		}
 
-		uint64_t bishopMoves = generateBishopMoves(kingLocations[player], player);
+		uint64_t bishopMoves = generateBishopMoves(kingLocations[player], occupiedBoard[1] | occupiedBoard[2]);
+		bishopMoves &= ~occupiedBoard[player];
 		if (bishopMoves & occupiedBoard[otherPlayer] & (pieceBoards[4] | pieceBoards[6])) {
 			return true;
 		}
 		
-		uint64_t rookMoves = generateRookMoves(kingLocations[player], player);
+		uint64_t rookMoves = generateRookMoves(kingLocations[player], occupiedBoard[1] | occupiedBoard[2]);
+		rookMoves &= ~occupiedBoard[player];
+
 		if (rookMoves & occupiedBoard[otherPlayer] & (pieceBoards[5] | pieceBoards[6])) {
 			return true;
 		}
@@ -687,6 +690,84 @@ public:
 		return rawHash;
 	}
 
+
+	uint64_t getAttackers(int square, uint64_t comboOB) {
+		uint64_t attackerBoard = 0ull;
+		int otherPlayer = currentPlayer % 2 + 1;
+
+		// Valid Knight Attacks on the currentSquare
+		attackerBoard |= validKnightMoves[square] & pieceBoards[3];
+
+		// Valid Diagonal Attacks on the currentSquare
+		attackerBoard |= generateBishopMoves(square, comboOB) & (pieceBoards[4] | pieceBoards[6]);
+
+		// Valid Rook Attacks on the currentSquare
+		attackerBoard |= generateRookMoves(square, comboOB) & (pieceBoards[5] | pieceBoards[6]);
+
+
+		// Pawn Attacks		
+		for (int player = 1; player <= 2; player++) {
+			int direction;
+			if (player == 1) {
+				direction = -8;
+			}
+			else {
+				direction = 8;
+			}
+
+			for (int i = direction - 1; i < direction + 2; i += 2) {
+				int targetSquare = square + i;
+				if (targetSquare < 0 || targetSquare > 63)
+					continue;
+				if (abs(targetSquare / 8 - square / 8) != 1)
+					continue;
+				//if (rawBoard[targetSquare] == (otherPlayer * 8 | 2)) {
+				if ((occupiedBoard[otherPlayer] & (pieceBoards[2]) & (1ull << targetSquare))) {
+					attackerBoard |= (1ull << targetSquare);
+				}
+			}
+		}
+
+		// King Attacks
+		attackerBoard |= validKingMoves[square] & pieceBoards[1];
+
+		return attackerBoard;
+	}
+
+
+	uint64_t generateRookMoves(int square, uint64_t blockerBitboard) {
+		uint64_t slidingMoveBitboard = 0ull;
+
+		uint64_t relevantBlockers = blockerBitboard | refinedRookMagics[square].negMask;
+		uint64_t hash = relevantBlockers * refinedRookMagics[square].blackMagic;
+		uint64_t tableIndex = (hash >> rookShift) + refinedRookMagics[square].tableOffset;
+
+		if (lookup_table[tableIndex] == 0) {
+			lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
+			printf("ERROR, IMPOSSIBLE. Rook MAGIC BOARD GEN FINDING A NEW POSITION\n");
+		}
+		slidingMoveBitboard = lookup_table[tableIndex];
+
+		return slidingMoveBitboard;
+	}
+
+	uint64_t generateBishopMoves(int square, uint64_t blockerBitboard) {
+		uint64_t slidingMoveBitboard = 0ull;
+
+		uint64_t relevantBlockers = blockerBitboard | refinedBishopMagics[square].negMask;
+		uint64_t hash = relevantBlockers * refinedBishopMagics[square].blackMagic;
+		uint64_t tableIndex = (hash >> bishopShift) + refinedBishopMagics[square].tableOffset;
+
+		if (lookup_table[tableIndex] == 0) {
+			//lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
+			printf("ERROR, IMPOSSIBLE. BISHOP BOARD GEN FINDING A NEW POSITION\n");
+		}
+		slidingMoveBitboard = lookup_table[tableIndex];
+
+		return slidingMoveBitboard;
+	}
+
+
 private:
 	int directions[8] = { 8, -8, -1, 1, -7, 7, -9, 9 };
 	int distanceFromEdge[64][8];
@@ -955,44 +1036,6 @@ private:
 		return movesGenerated;
 	}
 	
-	uint64_t generateRookMoves(int square, int safePlayer) {
-		uint64_t slidingMoveBitboard = 0ull;
-		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
-
-		uint64_t relevantBlockers = blockerBitboard | refinedRookMagics[square].negMask;
-		uint64_t hash = relevantBlockers * refinedRookMagics[square].blackMagic;
-		uint64_t tableIndex = (hash >> rookShift) + refinedRookMagics[square].tableOffset;
-
-		if (lookup_table[tableIndex] == 0) {
-			lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
-			printf("ERROR, IMPOSSIBLE. Rook MAGIC BOARD GEN FINDING A NEW POSITION\n");
-		}
-		slidingMoveBitboard = lookup_table[tableIndex];
-
-		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
-
-		return slidingMoveBitboard;
-	}
-
-	uint64_t generateBishopMoves(int square, int safePlayer) {
-		uint64_t slidingMoveBitboard = 0ull;
-		uint64_t blockerBitboard = occupiedBoard[1] | occupiedBoard[2];
-
-		uint64_t relevantBlockers = blockerBitboard | refinedBishopMagics[square].negMask;
-		uint64_t hash = relevantBlockers * refinedBishopMagics[square].blackMagic;
-		uint64_t tableIndex = (hash >> bishopShift) + refinedBishopMagics[square].tableOffset;
-
-		if (lookup_table[tableIndex] == 0) {
-			//lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
-			printf("ERROR, IMPOSSIBLE. BISHOP BOARD GEN FINDING A NEW POSITION\n");
-		}
-		slidingMoveBitboard = lookup_table[tableIndex];
-
-		slidingMoveBitboard &= ~occupiedBoard[safePlayer];
-
-		return slidingMoveBitboard;
-	}
-
 	uint64_t generateKnightMoves(int square, int safePlayer) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
 
@@ -1030,7 +1073,8 @@ private:
 
 		while (bishopBoard != 0) {
 			int square = popLSB(bishopBoard);
-			uint64_t bishopMoves = generateBishopMoves(square, wantedPlayer);
+			uint64_t bishopMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			bishopMoves &= ~occupiedBoard[wantedPlayer];
 
 			while (bishopMoves != 0) {
 				int targetSquare = popLSB(bishopMoves);
@@ -1042,7 +1086,8 @@ private:
 
 		while (rookBoard != 0) {
 			int square = popLSB(rookBoard);
-			uint64_t rookMoves = generateRookMoves(square, wantedPlayer);
+			uint64_t rookMoves = generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			rookMoves &= ~occupiedBoard[wantedPlayer];
 
 			while (rookMoves != 0) {
 				int targetSquare = popLSB(rookMoves);
@@ -1054,8 +1099,11 @@ private:
 
 		while (queenBoard != 0) {
 			int square = popLSB(queenBoard);
-			uint64_t queenMoves = generateBishopMoves(square, wantedPlayer);
-			queenMoves |= generateRookMoves(square, wantedPlayer);
+			uint64_t queenMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			queenMoves |= generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+
+			queenMoves &= ~occupiedBoard[wantedPlayer];
+
 
 			while (queenMoves != 0) {
 				int targetSquare = popLSB(queenMoves);
@@ -1102,22 +1150,27 @@ private:
 
 		while (bishopBoard != 0) {
 			int square = popLSB(bishopBoard);
-			uint64_t bishopMoves = generateBishopMoves(square, wantedPlayer);
+			uint64_t bishopMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			bishopMoves &= ~occupiedBoard[wantedPlayer];
 
 			attackingSquares[wantedPlayer] |= bishopMoves;
 		}
 
 		while (rookBoard != 0) {
 			int square = popLSB(rookBoard);
-			uint64_t rookMoves = generateRookMoves(square, wantedPlayer);
-			
+			uint64_t rookMoves = generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			rookMoves &= ~occupiedBoard[wantedPlayer];
+
 			attackingSquares[wantedPlayer] |= rookMoves;
 		}
 
 		while (queenBoard != 0) {
 			int square = popLSB(queenBoard);
-			uint64_t queenMoves = generateBishopMoves(square, wantedPlayer);
-			queenMoves |= generateRookMoves(square, wantedPlayer);
+			uint64_t queenMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			queenMoves |= generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+
+			queenMoves &= ~occupiedBoard[wantedPlayer];
+
 
 			attackingSquares[wantedPlayer] |= queenMoves;
 		}

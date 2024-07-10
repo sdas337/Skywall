@@ -43,8 +43,6 @@ int qhistoryTable[2][64][64][5];
 
 
 Move counterMoves[64][64];
-int maxHistory;
-
 
 Move killerMoves[1024][2];
 
@@ -52,6 +50,114 @@ Move moveToPlay;
 
 int maxTimeForMove = 0;
 int maxEval;
+
+
+// currently clarity values, will tune later
+int seeValues[7] = { 0, 0, 108, 446, 428, 665, 1110 };
+int mvvValues[7] = { 0, 0, 91, 401, 502, 736, 1192 };
+
+// Sourcing SEE from clarity and stormphrax
+int estimatedMoveValue(Move m, int flag) {
+	int value = seeValues[board.rawBoard[m.getEndSquare()] % 8];
+
+	if (flag > 1 && flag < 6) {
+		value += seeValues[flag + 1] - seeValues[2];
+	}
+
+	if (flag == 1) {
+		value = seeValues[2];
+	}
+
+	return value;
+}
+
+bool see(Move m, int threshhold) {
+	int startSquare = m.getStartSquare();
+	int endSquare = m.getEndSquare();
+	int flag = m.getFlag();
+
+	int victim = board.rawBoard[endSquare] % 8;
+	int nextVictim = board.rawBoard[startSquare] % 8;
+
+	if (flag > 1 && flag < 6) {
+		nextVictim = flag + 1;
+	}
+
+	int balance = estimatedMoveValue(m, flag) - threshhold;
+
+	if (balance < 0)
+		return false;
+
+	balance -= seeValues[nextVictim];
+
+	if (balance >= 0)
+		return true;
+
+	uint64_t occupied = board.occupiedBoard[1] | board.occupiedBoard[2];
+	occupied = (occupied ^ (1ull << startSquare)) | (1ull << endSquare);
+
+	if (flag == 1) {
+		occupied ^= (1ull << board.boardStates.back().enPassantSquare);
+	}
+
+	int color = board.currentPlayer % 2 + 1;
+
+	// Get pieces for revealed attackers
+	uint64_t bishops = board.pieceBoards[4] | board.pieceBoards[6];
+	uint64_t rooks = board.pieceBoards[5] | board.pieceBoards[6];
+
+	uint64_t attackers = board.getAttackers(endSquare, occupied) & occupied;
+
+	while (true) {
+		uint64_t myAttackers = attackers & board.occupiedBoard[color];
+		if (myAttackers == 0ull) {
+			break;
+		}
+
+		uint64_t relevantAttackerBoard = 0ull;
+		// find lowest value attacker. Begins from pawn and goes to queen
+		for (int index = 1; index <= 6; index++) {
+			nextVictim = index % 6 + 1;
+			relevantAttackerBoard = myAttackers & (board.pieceBoards[nextVictim]);
+			if(relevantAttackerBoard != 0) {
+				break;
+			}
+		}
+
+		// Make the move on the occupied board only
+		occupied ^= (1ull << countr_zero(relevantAttackerBoard));
+
+		// if the next victim is a pawn, bishop or queen (diagonal capture)
+		if (nextVictim == 2 || nextVictim == 4 || nextVictim == 6) {	// update diagonal attacks
+			attackers |= board.generateBishopMoves(endSquare, occupied) & bishops;
+		}
+
+		// if the next victim is a rook or queen (orthogonal capture)
+		if (nextVictim == 5 || nextVictim == 6) {
+			attackers |= board.generateRookMoves(endSquare, occupied) & rooks;
+		}
+
+		attackers &= occupied;
+
+		// update balance
+		balance = -balance - 1 - seeValues[nextVictim];
+
+		color = color % 2 + 1;
+
+		if (balance >= 0) {
+			// performing small legality check for king
+			if (nextVictim == 1) {
+				if (!(attackers & board.occupiedBoard[color])) {
+					color = color % 2 + 1;
+				}
+			}
+			break;
+		}
+	}
+
+	// If the color is different, you lost the exchange
+	return board.currentPlayer != color;
+}
 
 int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	uint64_t currentHash = board.boardStates.back().zobristHash;
@@ -123,11 +229,13 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 
 		Move move = allMoves[i];
 
-		board.makeMove(move);
+		/*bool seeResult = !see(move, 0);
+		if (seeResult) {	// Ignoring bad captures during qsearch
+			continue;
+		}*/
 
+		board.makeMove(move);
 		board.nodes++;
-		bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
-		int extensions = 0, reductions = 0;
 
 		currentScore = -qsearch(depth - 1, plyFromRoot + 1, -beta, -alpha);
 
@@ -150,8 +258,6 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 				int bonus = min(qhstConst.value, qhstQuad.value * depth * depth + qhstLin.value * depth + qhstConst.value);
 				bonus = bonus - value * abs(bonus) / 16384;
 				value += bonus;
-
-				maxHistory = max(maxHistory, value);
 
 				for (int z = 0; z < i; z++) {
 					move = allMoves[z];
@@ -190,7 +296,6 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 
 	return bestScore;
 }
-
 
 int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
 	bool inCheck = board.sideInCheck(board.currentPlayer);
@@ -268,15 +373,22 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
 			score = 8000000;
 		}
-		else if (board.isCapture(allMoves[i])) {	// MVV-LVA
-			score += 500000 * (board.rawBoard[allMoves[i].getEndSquare()] % 8) - (board.rawBoard[allMoves[i].getStartSquare()] % 8);
+		else if (board.isCapture(allMoves[i])) {	// MVV + SEE
+			score += mvvValues[(board.rawBoard[allMoves[i].getEndSquare()] % 8)];	// MVV
+
+			if (see(allMoves[i], 0)) {	// good captures
+				score += 500000;
+			}
+			else {
+				score += 50000;
+			}
 		}
 		else {
 			if (killerMoves[plyFromRoot][0] == allMoves[i] || killerMoves[plyFromRoot][1] == allMoves[i]) {	// Killer Moves
-				score = 450000;
+				score = 100000;
 			}
 			else if (allMoves[i] == counterMoves[priorMove.getStartSquare()][priorMove.getEndSquare()]) {	// Counter moves
-				score = 449000;
+				score = 99000;
 			}
 			else {	// History
 				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
@@ -397,8 +509,6 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 					bonus = bonus - value * abs(bonus) / 16384;
 					value += bonus;
 
-					maxHistory = max(maxHistory, value);
-
 					for (int z = 0; z < i; z++) {
 						move = allMoves[z];
 						if (!board.isCapture(move)) {
@@ -462,7 +572,6 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		}
 	}
 
-	maxHistory = 0ull;
 	maxEval = 0;
 	moveToPlay.rawValue = 0;
 	
@@ -471,7 +580,7 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	int softTimeBound = (int)( ((double)tcMul.value / 100) * (time * timeMul.value / 100 + inc * incMul.value / 100));
 	//softTimeBound = time / 30;
 
-	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tMax History\tLookups\t\tTT Entries\tNodes\n";
+	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
@@ -490,11 +599,10 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		else if (score >= beta)
 			beta += aspDelta.value;
 		else {
-			//cout << duration << " ms\t\t";
+			cout << duration << " ms\t\t";
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";
-			cout << maxHistory << "\t\t";
 			cout << board.lookups << "\t\t";
 			cout << board.ttEntries << "\t\t";
 			cout << board.nodes << "\n";
