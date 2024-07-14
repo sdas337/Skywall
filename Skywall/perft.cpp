@@ -1,6 +1,10 @@
 #pragma once
 
+#include "globals.h"
+
 #include "board.cpp"
+
+#include "eval.h"
 
 vector<pair<int, uint64_t>> perftTestResults[128];
 string FENs[128];
@@ -9,10 +13,15 @@ Board testBoard;
 
 int testDepth;
 
-int DEBUG = 0;
+int DEBUG = 1;
 
 uint64_t moveChecker(int depth, bool testingCaptures) {
 	uint64_t nodes = 0;
+
+	if (evaluate(testBoard) != evaluate2(testBoard)) {
+		cout << "Error Error. " << evaluate(testBoard) << ", " << evaluate2(testBoard) << "\n";
+	}
+
 	if (depth == 0) {
 		testBoard.nodes++;
 		return 1;
@@ -87,9 +96,11 @@ void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
 	testDepth = 5;
-	testBoard.loadBoardFromFen(FENs[1]);
-	//testBoard.loadBoardFromFen("r3k1Rr/8/8/8/8/8/8/R3K3 b Qkq - 1 1");
-	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R2K3R w kq - 0 2");
+	testBoard.loadBoardFromFen(FENs[0]);
+	//testBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a3 0 1");
+	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1p6/P7/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 2");
+	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1P6/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2");
+	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");
 
 	// breaks here
 	uint64_t result = moveChecker(testDepth, false);

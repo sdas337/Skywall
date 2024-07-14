@@ -3,7 +3,6 @@
 // uci.cpp : Defines the entry point for the application..
 // Responsible for UCI handling
 
-#include "uci.h"
 #include "globals.h"
 
 #include "perft.cpp"
@@ -29,6 +28,38 @@ void testing() {
 
 	printf("%llu nps", nodesPerSecond);
 
+}
+
+void evalTuningTest() {
+	ifstream file("../../../testFiles/uciTestFens.epd");
+
+	if (file.is_open()) {	// Reading in all the tests
+		int lineCount = 0;
+		string line;
+		while (getline(file, line)) {
+			// using printf() in all tests for consistency
+
+			if (lineCount > 0) {
+				break;
+			}
+
+			string fenString = line.substr(0, line.find(";") - 1);
+			//FENs[lineCount] = fenString;
+			//printf("%s\n", fenString.c_str());
+
+			mainBoard.loadBoardFromFen(fenString);
+			cout << fenString << "; [1.0]\n";
+
+			cout << " Eval: " << evaluate(mainBoard) << "\n";
+
+
+			lineCount++;
+		}
+		file.close();
+
+		printf("Finished reading in all tests\n");
+	}
+	
 }
 
 void bench(int depth) {
@@ -247,6 +278,8 @@ int main()
 	initEvalTables();
 	setupLMR();
 
+	//evalTuningTest();
+
 	//testing();
 	//outputTunableJSON();
 	uciHandling();
@@ -255,9 +288,11 @@ int main()
 
 	//bench(15);
 
-	//mainBoard.loadBoardFromFen("r1b1kbnr/ppppq1pp/2n2p2/4p3/3PPB2/5N2/PPP2PPP/RN1QKB1R w KQkq - 0 1");
+	//mainBoard.loadBoardFromFen("8/8/2k5/3p4/2pK2P1/8/8/8 w - - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";
 	//cout << "Evaluation is " << speedEval(mainBoard) << "\n";
+
+	//initEvalTables();
 
 	//testEval();
 

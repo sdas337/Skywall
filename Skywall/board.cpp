@@ -34,7 +34,6 @@ public:
 	int kingLocations[3];
 	uint64_t attackingSquares[3];
 
-
 	vector<BoardStateInformation> boardStates;
 
 	// no piece  = 0, king = 1, pawn = 2, knight = 3, bishop = 4, rook = 5, queen = 6, white = 8, black = 16

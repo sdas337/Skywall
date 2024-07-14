@@ -51,6 +51,20 @@ struct TuneValue {
 
 };
 
+constexpr int32_t S(const int32_t mg, const int32_t eg)
+{
+	//return (eg << 16) + mg;
+	return static_cast<int32_t>(static_cast<uint32_t>(eg) << 16) + mg;
+}
+
+constexpr int32_t extract_eg(const int32_t eval) {
+	return (eval + 0x8000) >> 16;
+}
+
+constexpr int32_t extract_mg(const int32_t eval) {
+	return ((short)eval);
+}
+
 extern TuneValue rfPruningBase;
 extern TuneValue rfpDepth;
 
