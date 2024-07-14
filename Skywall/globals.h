@@ -65,6 +65,43 @@ constexpr int32_t extract_mg(const int32_t eval) {
 	return ((short)eval);
 }
 
+// trim from start (in place)
+inline void ltrim(std::string& s) {
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+		return !std::isspace(ch);
+		}));
+}
+
+// trim from end (in place)
+inline void rtrim(std::string& s) {
+	s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+		return !std::isspace(ch);
+		}).base(), s.end());
+}
+
+inline void trim(std::string& s) {
+	rtrim(s);
+	ltrim(s);
+}
+
+inline std::vector<std::string> splitString(std::string& str, char delimiter)
+{
+	trim(str);
+	if (str == "") return std::vector<std::string>{};
+
+	std::vector<std::string> strSplit;
+	std::stringstream ss(str);
+	std::string token;
+
+	while (getline(ss, token, delimiter))
+	{
+		trim(token);
+		strSplit.push_back(token);
+	}
+
+	return strSplit;
+}
+
 extern TuneValue rfPruningBase;
 extern TuneValue rfpDepth;
 

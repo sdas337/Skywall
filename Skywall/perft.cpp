@@ -18,10 +18,6 @@ int DEBUG = 1;
 uint64_t moveChecker(int depth, bool testingCaptures) {
 	uint64_t nodes = 0;
 
-	if (evaluate(testBoard) != evaluate2(testBoard)) {
-		cout << "Error Error. " << evaluate(testBoard) << ", " << evaluate2(testBoard) << "\n";
-	}
-
 	if (depth == 0) {
 		testBoard.nodes++;
 		return 1;

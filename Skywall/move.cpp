@@ -38,6 +38,15 @@ public:
 		rawValue = (flags << 12) | (startSquare << 6) | (endSquare);
 	}
 
+	Move(string m) {
+		int startSquare = squareNameToValue(m.substr(0, 2));
+		int endSquare = squareNameToValue(m.substr(2, 4));
+		int flag = 0;
+
+		rawValue = (flag << 12) | (startSquare << 6) | (endSquare);
+	}
+
+
 	string printMove() {
 		string result = "";
 		result += (char)(getStartSquare() % 8 + 97);

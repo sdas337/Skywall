@@ -54,6 +54,7 @@ int maxEval;
 
 // currently clarity values, will tune later
 int seeValues[7] = { 0, 0, 108, 446, 428, 665, 1110 };
+//int seeValues[7] = { 0, 0, 100, 300, 300, 500, 900};
 int mvvValues[7] = { 0, 0, 91, 401, 502, 736, 1192 };
 
 // Sourcing SEE from clarity and stormphrax
@@ -403,13 +404,10 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 	bool futilePruning = depth <= fpDepth.value && (eval + fpScale.value * depth + fpMargin.value) <= alpha;
 
-	//int lateMovePruningQuiets[5] = {2, 8, 15, 22, 29};
 	int lmpMoves = 100;
 	int quietNodes = 0;
 	if (depth < lmpDepth.value) {
-		//lmpMoves = 4 + depth * depth;
 		lmpMoves =  lmpQuad.value * depth * depth / 100  + lmpScale.value * depth + lmpBase.value;
-		//lmpMoves = lateMovePruningQuiets[depth];
 	}
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
@@ -438,13 +436,18 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 
 		// Late Move Pruning
-		if (!importantMoves) {
-			if (!pvNode && depth < lmpDepth.value) {
+		if (!importantMoves && !pvNode) {
+			if (depth < lmpDepth.value) {
 				if (quietNodes > lmpMoves) {
 					break;
 				}
 			}
 			quietNodes++;
+
+			// History Pruning
+			/*if (plyFromRoot > 0 && depth < 6 && moveScores[i] < -1500 * depth - 1000) {
+				break;
+			}*/
 		}
 
 		board.makeMove(move);
