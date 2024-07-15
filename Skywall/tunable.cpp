@@ -43,6 +43,41 @@ TuneValue aspWindow("aspWindow", 80, 3, 150, 5);
 
 TuneValue iirDepth("iirDepth", 4, 0, 10, 1);
 
+TuneValue None("None", 0, 0, 0, 0);
+TuneValue mvvKing("mvvKing", 0, 0, 2000, 10);
+TuneValue mvvPawn("mvvPawn", 91, 0, 2000, 10);
+TuneValue mvvKnight("mvvKnight", 401, 0, 2000, 10);
+TuneValue mvvBishop("mvvBishop", 502, 0, 2000, 10);
+TuneValue mvvRook("mvvRook", 736, 0, 2000, 10);
+TuneValue mvvQueen("mvvQueen", 1192, 0, 2000, 10);
+
+TuneValue seeKing("seeKing", 0, 0, 2000, 10);
+TuneValue seePawn("seePawn", 108, 0, 2000, 10);
+TuneValue seeKnight("seeKnight", 446, 0, 2000, 10);
+TuneValue seeBishop("seeBishop", 428, 0, 2000, 10);
+TuneValue seeRook("seeRook", 665, 0, 2000, 10);
+TuneValue seeQueen("seeQueen", 1110, 0, 2000, 10);
+
+vector<TuneValue*> seeValues = {
+	&None,
+	&seeKing,
+	&seePawn,
+	&seeKnight,
+	&seeBishop,
+	&seeRook,
+	&seeQueen
+};
+
+vector<TuneValue*> mvvValues = {
+	&None,
+	&mvvKing,
+	&mvvPawn,
+	&mvvKnight,
+	&mvvBishop,
+	&mvvRook,
+	&mvvQueen
+};
+
 
 vector<TuneValue *> allTunables = {
 	&rfPruningBase,
@@ -75,5 +110,18 @@ vector<TuneValue *> allTunables = {
 	&incMul,
 	&aspDelta,
 	&aspWindow,
-	&iirDepth
+	&iirDepth,
+	&None,
+	&mvvKing,
+	&mvvPawn,
+	&mvvKnight,
+	&mvvBishop,
+	&mvvRook,
+	&mvvQueen,
+	&seeKing,
+	&seePawn,
+	&seeKnight,
+	&seeBishop,
+	&seeRook,
+	&seeQueen
 };

@@ -52,22 +52,18 @@ int maxTimeForMove = 0;
 int maxEval;
 
 
-// currently clarity values, will tune later
-int seeValues[7] = { 0, 0, 108, 446, 428, 665, 1110 };
-int mvvValues[7] = { 0, 0, 91, 401, 502, 736, 1192 };
-
 int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
-// Sourcing SEE from clarity and stormphrax
+// Sourcing SEE based on clarity and stormphrax
 int estimatedMoveValue(Move m, int flag) {
-	int value = seeValues[board.rawBoard[m.getEndSquare()] % 8];
+	int value = seeValues[board.rawBoard[m.getEndSquare()] % 8]->value;
 
 	if (flag > 1 && flag < 6) {
-		value += seeValues[flag + 1] - seeValues[2];
+		value += seeValues[flag + 1]->value - seeValues[2]->value;
 	}
 
 	if (flag == 1) {
-		value = seeValues[2];
+		value = seeValues[2]->value;
 	}
 
 	return value;
@@ -90,7 +86,7 @@ bool see(Move m, int threshhold) {
 	if (balance < 0)
 		return false;
 
-	balance -= seeValues[nextVictim];
+	balance -= seeValues[nextVictim]->value;
 
 	if (balance >= 0)
 		return true;
@@ -142,7 +138,7 @@ bool see(Move m, int threshhold) {
 		attackers &= occupied;
 
 		// update balance
-		balance = -balance - 1 - seeValues[nextVictim];
+		balance = -balance - 1 - seeValues[nextVictim]->value;
 
 		color = color % 2 + 1;
 
@@ -170,7 +166,6 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	int bestScore = -999999;
 
 	// maybe check repeated pos
-
 	if (currentEntry.zobristHash == currentHash) {
 		if (!pvNode) {	// test qsearch without
 			if (currentEntry.flag == 4 ||	// exact score
@@ -274,7 +269,7 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 		}
 	}
 
-	int boundType = 0;
+	uint8_t boundType = 0;
 	if (bestScore >= beta) {
 		boundType = 2;
 	}
@@ -376,7 +371,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 			score = 8000000;
 		}
 		else if (board.isCapture(allMoves[i])) {	// MVV + SEE
-			score += mvvValues[(board.rawBoard[allMoves[i].getEndSquare()] % 8)];	// MVV
+			score += mvvValues[(board.rawBoard[allMoves[i].getEndSquare()] % 8)]->value;	// MVV
 
 			if (see(allMoves[i], 0)) {	// good captures
 				score += 500000;
@@ -529,7 +524,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 	}
 
-	int boundType = 0;
+	uint8_t boundType = 0;
 	if (bestScore >= beta) {
 		boundType = 2;
 	}
