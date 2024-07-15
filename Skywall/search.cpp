@@ -12,9 +12,9 @@ uint32_t actual_TT_Size = 1048576;
 struct TTentry {
 	uint64_t zobristHash;
 	Move m;
-	int depth;
+	uint8_t depth;
+	uint8_t flag;
 	int score;
-	size_t flag;
 
 	TTentry() {
 		zobristHash = 0ull;
@@ -429,6 +429,13 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		// Pruning moves within the loop
 		if (futilePruning && !importantMoves && i > 0) {
 			break;
+		}
+
+		// See Pruning
+		if (!pvNode && !inCheck) {
+			if (depth < seePDepth.value && board.isCapture(move) && !see(move, seePScale.value * depth)) {
+				continue;
+			}
 		}
 
 		// Late Move Pruning

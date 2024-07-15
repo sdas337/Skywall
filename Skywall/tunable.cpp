@@ -58,6 +58,9 @@ TuneValue seeBishop("seeBishop", 428, 0, 2000, 10);
 TuneValue seeRook("seeRook", 665, 0, 2000, 10);
 TuneValue seeQueen("seeQueen", 1110, 0, 2000, 10);
 
+TuneValue seePDepth("seePDepth", 7, 0, 12, 1);
+TuneValue seePScale("seePScale", -100, -200, 0, 10);
+
 vector<TuneValue*> seeValues = {
 	&None,
 	&seeKing,
@@ -123,5 +126,7 @@ vector<TuneValue *> allTunables = {
 	&seeKnight,
 	&seeBishop,
 	&seeRook,
-	&seeQueen
+	&seeQueen,
+	&seePDepth,
+	&seePScale
 };
