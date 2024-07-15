@@ -54,8 +54,9 @@ int maxEval;
 
 // currently clarity values, will tune later
 int seeValues[7] = { 0, 0, 108, 446, 428, 665, 1110 };
-//int seeValues[7] = { 0, 0, 100, 300, 300, 500, 900};
 int mvvValues[7] = { 0, 0, 91, 401, 502, 736, 1192 };
+
+int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
 // Sourcing SEE from clarity and stormphrax
 int estimatedMoveValue(Move m, int flag) {
@@ -148,7 +149,7 @@ bool see(Move m, int threshhold) {
 		if (balance >= 0) {
 			// performing small legality check for king
 			if (nextVictim == 1) {
-				if (!(attackers & board.occupiedBoard[color])) {
+				if ((attackers & board.occupiedBoard[color]) != 0) {
 					color = color % 2 + 1;
 				}
 			}
@@ -230,10 +231,10 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 
 		Move move = allMoves[i];
 
-		/*bool seeResult = !see(move, 0);
+		bool seeResult = !see(move, 0);
 		if (seeResult) {	// Ignoring bad captures during qsearch
 			continue;
-		}*/
+		}
 
 		board.makeMove(move);
 		board.nodes++;
@@ -583,7 +584,9 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	int softTimeBound = (int)( ((double)tcMul.value / 100) * (time * timeMul.value / 100 + inc * incMul.value / 100));
 	//softTimeBound = time / 30;
 
-	cout << "Time\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
+	if (maxDepth > 1) {
+		cout << "Time\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
+	}
 
 	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();

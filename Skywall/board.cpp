@@ -433,6 +433,37 @@ public:
 		//file.close();
 	}
 
+	void setMoveFromString(Move& m, string currentMove) {
+		int startSquare = squareNameToValue(currentMove.substr(0, 2));
+		int endSquare = squareNameToValue(currentMove.substr(2, 4));
+		int flag = 0;
+
+		if (rawBoard[startSquare] % 8 == 2) {	// Checking if pawn
+			if (endSquare == boardStates.back().enPassantSquare) {
+				flag = 1;
+			}
+			else if (currentMove.size() == 5) {
+				if (currentMove[4] == 'n')
+					flag = 2;
+				if (currentMove[4] == 'b')
+					flag = 3;
+				if (currentMove[4] == 'r')
+					flag = 4;
+				if (currentMove[4] == 'q')
+					flag = 5;
+			}
+			else if (abs(endSquare / 8 - startSquare / 8) > 1) {	// Double Pawn Push
+				flag = 7;
+			}
+		}
+		if (rawBoard[startSquare] % 8 == 1) {	// king move
+			if (abs(endSquare % 8 - startSquare % 8) > 1) {	// Castling
+				flag = 6;
+			}
+		}
+		m.rawValue = (flag << 12) | (startSquare << 6) | (endSquare);
+	}
+
 	void loadBoardFromFen(string fen) {
 		bool castlingRights[4] = { 0, 0, 0, 0 };
 		int enPassantSquare = 64;
@@ -544,19 +575,31 @@ public:
 
 		// en passant
 		remainder = remainder.substr(1);
+
+		int index = remainder.find(" ");
+		if (index < 0) {
+			current = remainder;
+		}
 		current = remainder.substr(0, remainder.find(" "));
-		remainder = remainder.substr(remainder.find(" "));
 		if (current[0] != '-') {
 			int col = (int)(current[0] - 97);
 			int row = (int)(current[1] - 49);
 			enPassantSquare = row * 8 + col;
 		}
+		
+		if (index >= 0) {
+			remainder = remainder.substr(index);
 
-		remainder = remainder.substr(1);
-		current = remainder.substr(0, remainder.find(" "));
-		remainder = remainder.substr(remainder.find(" "));
-		fiftyMoveCount = stoi(current);	
-		plyCount = stoi(remainder) * 2 + currentPlayer % 2;
+			remainder = remainder.substr(1);
+			current = remainder.substr(0, remainder.find(" "));
+			remainder = remainder.substr(remainder.find(" "));
+			fiftyMoveCount = stoi(current);
+			plyCount = stoi(remainder) * 2 + currentPlayer % 2;
+		}
+		else {
+			fiftyMoveCount = 0;
+			plyCount = 0;
+		}
 
 		BoardStateInformation tmp;
 		tmp.enPassantSquare = enPassantSquare;
@@ -596,7 +639,7 @@ public:
 		string startingBoardPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 		loadBoardFromFen(startingBoardPos);
 
-		printf("Finished setting up board.\n");
+		//printf("Finished setting up board.\n");
 	}
 
 	vector<Move> generateLegalMovesV2(bool onlyCaptures) {	// Using faster check detection
@@ -692,7 +735,6 @@ public:
 
 	uint64_t getAttackers(int square, uint64_t comboOB) {
 		uint64_t attackerBoard = 0ull;
-		int otherPlayer = currentPlayer % 2 + 1;
 
 		// Valid Knight Attacks on the currentSquare
 		attackerBoard |= validKnightMoves[square] & pieceBoards[3];
@@ -706,6 +748,7 @@ public:
 
 		// Pawn Attacks		
 		for (int player = 1; player <= 2; player++) {
+
 			int direction;
 			if (player == 1) {
 				direction = -8;
@@ -721,7 +764,7 @@ public:
 				if (abs(targetSquare / 8 - square / 8) != 1)
 					continue;
 				//if (rawBoard[targetSquare] == (otherPlayer * 8 | 2)) {
-				if ((occupiedBoard[otherPlayer] & (pieceBoards[2]) & (1ull << targetSquare))) {
+				if ((occupiedBoard[player] & (pieceBoards[2]) & (1ull << targetSquare))) {
 					attackerBoard |= (1ull << targetSquare);
 				}
 			}

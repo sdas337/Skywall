@@ -240,7 +240,7 @@ void generateRookMagics() {
 		} while (currentBlockers);
 	}
 
-	printf("%d current entries in table after Rook.\n", entryCount);
+	//printf("%d current entries in table after Rook.\n", entryCount);
 }
 
 void generateBishopMagics() {
@@ -275,7 +275,7 @@ void generateBishopMagics() {
 		} while (currentBlockers);
 	}
 
-	printf("%d current entries in table after bishops.\n", entryCount);
+	//printf("%d current entries in table after bishops.\n", entryCount);
 }
 
 void generateMagics() {
@@ -299,5 +299,5 @@ void generateMagics() {
 
 	set<uint64_t> uniqueIndices(indexList.begin(), indexList.end());
 
-	cout << uniqueIndices.size() << " " << indexList.size() << "\n";
+	//cout << uniqueIndices.size() << " " << indexList.size() << "\n";
 }

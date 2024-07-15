@@ -38,6 +38,7 @@ void seeTest() {
 	//SEE_PIECE_VALUES = { 100, 300, 300, 500, 900, 0, 0 };
 
 	int failed = 0, passed = 0;
+	int lineCount = 0;
 
 	std::string line;
 	while (std::getline(inputFile, line))
@@ -54,17 +55,19 @@ void seeTest() {
 		tmpBoard.loadBoardFromFen(fen);
 		searchBoard(tmpBoard, 1000 * 480, 0, 0);
 
-		Move currentMove(uciMove);
+		Move currentMove;
+
+		tmpBoard.setMoveFromString(currentMove, uciMove);
 
 		bool result = see(currentMove, 0);
 
 		if (result == expected)
 			passed++;
 		else {
-			std::cout << "FAILED " << fen << " | " << uciMove << " | Expected: " << expected << std::endl;
+			std::cout << "FAILED " << fen << " | " << uciMove << " | Gain: " << gain << std::endl;
 			failed++;
 		}
-
+		lineCount++;
 	}
 
 	inputFile.close();
