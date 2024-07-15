@@ -433,7 +433,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		// See Pruning
 		if (!pvNode && !inCheck) {
-			if (depth < seePDepth.value && board.isCapture(move) && !see(move, seePScale.value * depth)) {
+			if (depth < seePDepth.value && !see(move, depth * (board.isCapture(move) ? seeCPScale.value : seeQPScale.value)) ) {
 				continue;
 			}
 		}

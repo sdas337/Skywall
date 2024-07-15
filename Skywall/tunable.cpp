@@ -59,7 +59,8 @@ TuneValue seeRook("seeRook", 665, 0, 2000, 10);
 TuneValue seeQueen("seeQueen", 1110, 0, 2000, 10);
 
 TuneValue seePDepth("seePDepth", 7, 0, 12, 1);
-TuneValue seePScale("seePScale", -100, -200, 0, 10);
+TuneValue seeCPScale("seeCPScale", -100, -200, 0, 10);
+TuneValue seeQPScale("seeQPScale", -40, -200, 0, 10);
 
 vector<TuneValue*> seeValues = {
 	&None,
@@ -128,5 +129,6 @@ vector<TuneValue *> allTunables = {
 	&seeRook,
 	&seeQueen,
 	&seePDepth,
-	&seePScale
+	&seeCPScale,
+	&seeQPScale
 };

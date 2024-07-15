@@ -144,7 +144,8 @@ extern TuneValue aspWindow;
 extern TuneValue iirDepth;
 
 extern TuneValue seePDepth;
-extern TuneValue seePScale;
+extern TuneValue seeCPScale;
+extern TuneValue seeQPScale;
 
 
 extern vector<TuneValue*> mvvValues;
