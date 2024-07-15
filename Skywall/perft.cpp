@@ -13,7 +13,7 @@ Board testBoard;
 
 int testDepth;
 
-int DEBUG = 1;
+int DEBUG = 0;
 
 uint64_t moveChecker(int depth, bool testingCaptures) {
 	uint64_t nodes = 0;
@@ -91,9 +91,9 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 5;
+	testDepth = 1;
 	testBoard.loadBoardFromFen(FENs[0]);
-	//testBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a3 0 1");
+	testBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
 	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1p6/P7/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1P6/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");

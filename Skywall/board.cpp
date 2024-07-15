@@ -819,6 +819,8 @@ private:
 	vector<Move> examinedMovesDuringCheck;
 
 	uint64_t validPawnMoveMasks[64][3];
+	uint64_t validPawnCaptureMasks[64][3];
+
 	uint64_t zobPieces[3][7][64];
 	uint64_t zobColor;
 	uint64_t zobCastle[4];
@@ -900,35 +902,33 @@ private:
 			}
 		}
 
-		// precomputing valid white pawn move masks
-		for (int row = 1; row < 7; row++) {
-			int square = row * 8;
-			validPawnMoveMasks[square][1] = 3ull << (square + 8);
+		// Precomputing valid pawn capture masks
+		for (int square = 8; square < 56; square++) {
 
-			for (int col = 1; col < 7; col++) {
-				square = row * 8 + col;
-				validPawnMoveMasks[square][1] = 7ull << (square + 7);
+			uint64_t currentFileMask = 0x101010101010101ul << (square % 8);
+
+			uint64_t captureFiles = 0;
+			if (square % 8 > 0) {
+				captureFiles |= (currentFileMask >> 1);
+			}
+			if (square % 8 < 7) {
+				captureFiles |= (currentFileMask << 1);
 			}
 
-			square = row * 8 + 7;
-			validPawnMoveMasks[square][1] = 3ull << (square + 7);
+			uint64_t captureRow = 0xffull << (8 * (square / 8) + 8);
+			validPawnCaptureMasks[square][1] = captureRow & captureFiles;
+
+			// Black pawn capture row
+			captureRow = 0xffull << 8 * (square / 8 - 1);
+			validPawnCaptureMasks[square][2] = captureRow & captureFiles;
+
+			//printf("0x%" PRIx64 "\n", validPawnCaptureMasks[square][1]);
 		}
 
-		// precomputing valid black pawn move masks
-		for (int row = 6; row > 0; row--) {
-			int square = row * 8;
-			validPawnMoveMasks[square][2] = 3ull << (square - 8);
-			//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
-
-			for (int col = 1; col < 7; col++) {
-				square = row * 8 + col;
-				validPawnMoveMasks[square][2] = 7ull << (square - 9);
-				//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
-			}
-
-			square = row * 8 + 7;
-			validPawnMoveMasks[square][2] = 3ull << (square - 9);
-			//printf("0x%" PRIx64 "\n", validPawnMoveMasks[square][2]);
+		// precomputing valid pawn move masks
+		for (int square = 8; square < 56; square++) {
+			validPawnMoveMasks[square][1] = 1ull << (square + 8);
+			validPawnMoveMasks[square][2] = 1ull << (square - 8);
 		}
 
 	}
@@ -990,28 +990,12 @@ private:
 		return movesGenerated;
 	}
 
-	uint64_t generatePawnCaptures(int square, int wantedPlayer) {
+	uint64_t generatePawnAttacks(int square, int wantedPlayer) {
 		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
 
-		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
+		uint64_t currentPawnMask = validPawnCaptureMasks[square][wantedPlayer];
 
-		uint64_t captureFiles = 0;
-		if (square % 8 > 0) {
-			captureFiles |= (currentFileMask >> 1);
-		}
-		if (square % 8 < 7) {
-			captureFiles |= (currentFileMask << 1);
-		}
-
-		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer] & captureFiles;
-
-		if (boardStates.back().enPassantSquare < 64 && boardStates.back().enPassantSquare >= 0) {
-			otherOccupiedBoard |= (1ull << boardStates.back().enPassantSquare);
-		}
-
-		uint64_t validCapturePawnMoves = currentPawnMask & otherOccupiedBoard;
-
-		return validCapturePawnMoves;
+		return currentPawnMask & otherOccupiedBoard;
 	}
 
 	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
@@ -1019,17 +1003,8 @@ private:
 		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 
 		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
-		uint64_t currentFileMask = 0x101010101010101 << (square % 8);
-		uint64_t unblockedLocationsMask = 0xffull << (square / 8 * 8);
-
-		if (wantedPlayer == 1) {
-			unblockedLocationsMask = unblockedLocationsMask << 8;
-		}
-		else {
-			unblockedLocationsMask = unblockedLocationsMask >> 8;
-		}
-
-		uint64_t validForwardPawnMoves = (currentPawnMask & currentFileMask) & ~(totalOccupiedBoard) & unblockedLocationsMask;
+		
+		uint64_t validForwardPawnMoves = (currentPawnMask) & ~(totalOccupiedBoard);
 
 		if (validForwardPawnMoves != 0) {
 			if (square / 8 == 1 && wantedPlayer == 1) {
@@ -1050,7 +1025,16 @@ private:
 			}
 		}
 
-		uint64_t validPawnMoves = generatePawnCaptures(square, wantedPlayer) | validForwardPawnMoves;
+		if (boardStates.back().enPassantSquare >= 0 && boardStates.back().enPassantSquare < 64) {	// En passant Move
+			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates.back().enPassantSquare);
+			if (enPassant != 0ull) {
+				moves[insertionIndex] = Move(square, boardStates.back().enPassantSquare, 1);
+				insertionIndex++;
+				movesGenerated++;
+			}
+		}
+
+		uint64_t validPawnMoves = generatePawnAttacks(square, wantedPlayer) | validForwardPawnMoves;
 
 		while (validPawnMoves != 0) {
 			int targetSquare = popLSB(validPawnMoves);
@@ -1063,16 +1047,9 @@ private:
 				}
 			}
 			else {
-				if (targetSquare == boardStates.back().enPassantSquare) {
-					moves[insertionIndex] = Move(square, targetSquare, 1);
-					insertionIndex++;
-					movesGenerated++;
-				}
-				else {
-					moves[insertionIndex] = Move(square, targetSquare, 0);
-					insertionIndex++;
-					movesGenerated++;
-				}
+				moves[insertionIndex] = Move(square, targetSquare, 0);
+				insertionIndex++;
+				movesGenerated++;
 			}
 		}
 		return movesGenerated;
@@ -1169,18 +1146,7 @@ private:
 		while (pawnBoard != 0) {
 			int square = popLSB(pawnBoard);
 
-			uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
-			uint64_t currentFileMask = 0x101010101010101 << (square % 8);
-
-			uint64_t captureFiles = 0;
-			if (square % 8 > 0) {
-				captureFiles |= (currentFileMask >> 1);
-			}
-			if (square % 8 < 7) {
-				captureFiles |= (currentFileMask << 1);
-			}
-			uint64_t pawnAttacks = (currentPawnMask & captureFiles);
-			attackingSquares[wantedPlayer] |= pawnAttacks;
+			attackingSquares[wantedPlayer] |= validPawnCaptureMasks[square][wantedPlayer];
 		}
 
 		while (knightBoard != 0) {
