@@ -5,9 +5,9 @@
 
 using namespace std;
 
-#define TT_size 1048576
-
 extern int lmrReductions[256][256];
+
+uint32_t actual_TT_Size = 1048576;
 
 struct TTentry {
 	uint64_t zobristHash;
@@ -36,7 +36,7 @@ struct TTentry {
 chrono::high_resolution_clock::time_point start;
 Board board;
 
-TTentry transpositionTable[TT_size];
+vector<TTentry> transpositionTable;
 
 int historyTable[2][64][64];
 int qhistoryTable[2][64][64][5];
@@ -159,7 +159,7 @@ bool see(Move m, int threshhold) {
 
 int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	uint64_t currentHash = board.boardStates.back().zobristHash;
-	TTentry currentEntry = transpositionTable[currentHash % TT_size];
+	TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
 
 	bool pvNode = (beta - alpha) > 1;
 	int historyIndex = plyFromRoot % 2;
@@ -283,13 +283,13 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	}
 
 	if (boundType == 1) {
-		bestMove = transpositionTable[currentHash % TT_size].m;
+		bestMove = transpositionTable[currentHash % actual_TT_Size].m;
 	}
-	if (transpositionTable[currentHash % TT_size].depth <= 0) {
+	if (transpositionTable[currentHash % actual_TT_Size].depth <= 0) {
 		board.ttEntries++;
 	}
 
-	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, 0, boundType);
+	transpositionTable[currentHash % actual_TT_Size] = TTentry(currentHash, bestMove, bestScore, 0, boundType);
 
 	return bestScore;
 }
@@ -303,7 +303,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 
 	uint64_t currentHash = board.boardStates.back().zobristHash;
-	TTentry currentEntry = transpositionTable[currentHash % TT_size];
+	TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
 
 	bool pvNode = (beta - alpha) > 1;
 	bool notRoot = plyFromRoot > 0;
@@ -538,13 +538,13 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 	}
 
 	if (boundType == 1) {
-		bestMove = transpositionTable[currentHash % TT_size].m;
+		bestMove = transpositionTable[currentHash % actual_TT_Size].m;
 	}
-	if (transpositionTable[currentHash % TT_size].depth <= 0) {
+	if (transpositionTable[currentHash % actual_TT_Size].depth <= 0) {
 		board.ttEntries++;
 	}
 
-	transpositionTable[currentHash % TT_size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
+	transpositionTable[currentHash % actual_TT_Size] = TTentry(currentHash, bestMove, bestScore, depth, boundType);
 	
 	//cout << "Added move " << bestMove.printMove() << " to the transposition table.\n";
 

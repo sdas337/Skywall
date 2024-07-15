@@ -146,5 +146,4 @@ extern TuneValue iirDepth;
 extern vector<TuneValue*> mvvValues;
 extern vector<TuneValue*> seeValues;
 
-
 extern vector<TuneValue*> allTunables;

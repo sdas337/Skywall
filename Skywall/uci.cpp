@@ -113,7 +113,7 @@ void bench(int depth) {
 	auto start = chrono::high_resolution_clock::now();
 
 	for (int line = 0; line < 128; line++) {
-		for (int i = 0; i < TT_size; i++)
+		for (uint32_t i = 0; i < actual_TT_Size; i++)
 			transpositionTable[i] = TTentry();
 
 		printf("Position %d\n", line);
@@ -192,6 +192,12 @@ void optionHandling(string instruction) {
 	vector<string> splitString = split(instruction, ' ');
 
 	if (splitString[2] == "Hash") {
+		int newSizeMB = stoi(splitString[4]);
+		int newSizeBytes = newSizeMB * 1024 * 1024;
+
+		actual_TT_Size = newSizeBytes / sizeof(TTentry);
+		transpositionTable.resize(actual_TT_Size);
+
 		// One day will do
 	}
 	else {	// Tunables
@@ -215,8 +221,8 @@ void instructionHandling(string instruction) {
 		cout << "id: name Skywall V0.0\n";
 		cout << "id: author Waterwall\n";
 		cout << "option name Hash type spin default 1 min 1 max 64\n";
-		cout << "option name Threads type spin default 1 min 1 max 64\n";
-		cout << "option name SyzygyPath type string default <empty>\n";
+		cout << "option name Threads type spin default 1 min 1 max 1\n";
+		//cout << "option name SyzygyPath type string default <empty>\n";
 		outputTunableOptions();
 		cout << "uciok\n";
 	}
@@ -225,7 +231,7 @@ void instructionHandling(string instruction) {
 	}
 	else if (splitString[0] == "ucinewgame") {
 		mainBoard = Board();
-		for(int i = 0; i < TT_size; i++)
+		for(uint32_t i = 0; i < actual_TT_Size; i++)
 			transpositionTable[i] = TTentry();
 	}
 	else if (splitString[0] == "position") {
@@ -321,6 +327,8 @@ void uciHandling() {
 int main()
 {
 	setupLMR();
+
+	transpositionTable.resize(actual_TT_Size);
 
 	//evalTuningTest();
 	//seeTest();
