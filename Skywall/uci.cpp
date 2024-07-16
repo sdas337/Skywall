@@ -21,10 +21,10 @@ void testing() {
 	//perftTest();
 	auto stop = chrono::high_resolution_clock::now();
 
-	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-	cout << duration.count() << " milliseconds\n";
+	auto duration = chrono::duration_cast<chrono::nanoseconds>(stop - start);
+	cout << duration.count() / 1000000 << " milliseconds\n";
 	cout << testBoard.nodes << " nodes\n";
-	uint64_t nodesPerSecond = (testBoard.nodes * 1000ull) / (duration.count());
+	uint64_t nodesPerSecond = (testBoard.nodes * 1000000000ull) / (duration.count());
 
 	printf("%llu nps", nodesPerSecond);
 
@@ -335,7 +335,7 @@ int main()
 
 	//testing();
 	//outputTunableJSON();
-	uciHandling();
+	//uciHandling();
 
 	//bench(10);
 
@@ -351,7 +351,7 @@ int main()
 
 	//searchBoard(mainBoard, 1000 * 480, 0, 15);
 
-	//movegenBenchmark();
+	movegenBenchmark();
 
 	return 0;
 }

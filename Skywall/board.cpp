@@ -9,10 +9,10 @@
 using namespace std;
 
 struct BoardStateInformation {
-	int enPassantSquare;
 	bool castlingRights[4];
-	int fiftyMoveCount;
-	int capturedPieceType;
+	int8_t enPassantSquare;
+	int8_t fiftyMoveCount;
+	int8_t capturedPieceType;
 	uint64_t zobristHash;
 };
 
@@ -332,8 +332,16 @@ public:
 			return true;
 		}
 
+		
+		// Pawn Attacks
+		if (generatePawnAttacks(kingLocations[player], player) & pieceBoards[2]) {
+			return true;
+		}
+
+		return false;
+
 		// Pawn positions
-		int direction;
+		/*int direction;
 		if (otherPlayer == 1) {
 			direction = -8;
 		}
@@ -351,7 +359,7 @@ public:
 			if( (occupiedBoard[otherPlayer] & (pieceBoards[2]) & (1ull << targetSquare)) ) {
 				return true;
 			}
-		}
+		}*/
 
 		return false;
 	}
@@ -903,7 +911,7 @@ private:
 		}
 
 		// Precomputing valid pawn capture masks
-		for (int square = 8; square < 56; square++) {
+		for (int square = 0; square < 64; square++) {
 
 			uint64_t currentFileMask = 0x101010101010101ul << (square % 8);
 

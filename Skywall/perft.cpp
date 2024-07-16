@@ -91,10 +91,10 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 1;
-	testBoard.loadBoardFromFen(FENs[0]);
-	testBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
-	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1p6/P7/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 2");
+	testDepth = 5;
+	testBoard.loadBoardFromFen(FENs[1]);
+	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R b kq - 1 1");
+	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q2/PPPBBPpP/R4K1R w kq - 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1P6/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");
 
@@ -156,6 +156,7 @@ void movegenBenchmark() {
 
 	auto start = chrono::high_resolution_clock::now();
 	for (int line = 0; line < 128; line++) {
+		cout << line << "\n";
 		testBoard.loadBoardFromFen(FENs[line]);
 
 		for (int repCount = 0; repCount < 524288; repCount++) {
@@ -175,7 +176,7 @@ void movegenBenchmark() {
 		testBoard.loadBoardFromFen(FENs[line]);
 
 		vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
-		for (int repCount = 0; repCount < 524288; repCount++) {
+		for (int repCount = 0; repCount < 32678; repCount++) {
 			for (Move move : allMoves) {
 				testBoard.makeMove(move);
 				moveCount++;
