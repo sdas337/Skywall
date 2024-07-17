@@ -122,7 +122,7 @@ void completePerftTest() {
 
 		//testBoard.precomputeDistances();
 		size_t pairCount = perftTestResults[line].size();
-		for (int z = 0; z < pairCount; z++) {
+		for (size_t z = 0; z < pairCount; z++) {
 			int depth = perftTestResults[line][z].first;
 			uint64_t moveCount = perftTestResults[line][z].second;
 

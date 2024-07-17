@@ -23,7 +23,7 @@ struct TTentry {
 		score = 0;
 		flag = 0;
 	}
-	TTentry(uint64_t hash, Move move, int s, int d, size_t f) {
+	TTentry(uint64_t hash, Move move, int s, uint8_t d, uint8_t f) {
 		zobristHash = hash;
 		m = move;
 		depth = d;
@@ -40,7 +40,6 @@ vector<TTentry> transpositionTable;
 int historyTable[2][64][64];
 int qhistoryTable[2][64][64][5];
 
-
 Move counterMoves[64][64];
 
 Move killerMoves[1024][2];
@@ -48,8 +47,13 @@ Move killerMoves[1024][2];
 Move moveToPlay;
 
 int maxTimeForMove = 0;
-int maxEval;
 
+struct StackEntry {
+	bool inCheck;
+	int evalScore;
+};
+
+StackEntry searchStack[1024];
 
 int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
@@ -68,7 +72,7 @@ int estimatedMoveValue(Board& board, Move m, int flag) {
 	return value;
 }
 
-bool see(Board& board, Move m, int threshhold) {
+static bool see(Board& board, Move m, int threshhold) {
 	int startSquare = m.getStartSquare();
 	int endSquare = m.getEndSquare();
 	int flag = m.getFlag();
@@ -177,7 +181,6 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 	}
 
 	bestScore = evaluate(board);
-	maxEval = max(bestScore, maxEval);
 
 	if (bestScore >= beta) {
 		return bestScore;
@@ -331,7 +334,9 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 	}
 
 	int eval = evaluate(board);
-	maxEval = max(eval, maxEval);
+
+	
+
 
 	if (!pvNode && !inCheck) {	// Pruning Technique Location
 		// Testing out rf pruning
@@ -569,6 +574,7 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 	for (int i = 0; i < 1024; i++) {
 		killerMoves[i][0].rawValue = 0;
 		killerMoves[i][1].rawValue = 0;
+		searchStack[i] = StackEntry();
 	}
 
 	for (int i = 0; i < 64; i++) {		// Reset counter moves between searches
@@ -577,7 +583,6 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		}
 	}
 
-	maxEval = 0;
 	moveToPlay.rawValue = 0;
 	
 	maxTimeForMove = time / hardTC.value;
