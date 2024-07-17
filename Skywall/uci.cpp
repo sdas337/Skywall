@@ -53,13 +53,12 @@ void seeTest() {
 
 		Board tmpBoard = Board();
 		tmpBoard.loadBoardFromFen(fen);
-		searchBoard(tmpBoard, 1000 * 480, 0, 0);
 
 		Move currentMove;
 
 		tmpBoard.setMoveFromString(currentMove, uciMove);
 
-		bool result = see(currentMove, 0);
+		bool result = see(tmpBoard, currentMove, 0);
 
 		if (result == expected)
 			passed++;
@@ -110,6 +109,8 @@ void evalTuningTest() {
 void bench(int depth) {
 	importPerftTest();
 
+	uint64_t totalNodes = 0ull;
+
 	auto start = chrono::high_resolution_clock::now();
 
 	for (int line = 0; line < 128; line++) {
@@ -123,6 +124,7 @@ void bench(int depth) {
 
 		printf("\n");
 
+		totalNodes += testBoard.nodes;
 		testBoard.nodes = 0ull;
 	}
 
@@ -130,6 +132,11 @@ void bench(int depth) {
 
 	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
 	cout << duration.count() << " milliseconds\n";
+
+	cout << totalNodes << " nodes\n";
+
+	uint64_t moveGenSpeed = (totalNodes * 1000) / (duration.count());
+	printf("%llu nps\n", moveGenSpeed);
 
 }
 
@@ -335,7 +342,7 @@ int main()
 
 	//testing();
 	//outputTunableJSON();
-	//uciHandling();
+	uciHandling();
 
 	//bench(10);
 
@@ -351,7 +358,7 @@ int main()
 
 	//searchBoard(mainBoard, 1000 * 480, 0, 15);
 
-	movegenBenchmark();
+	//movegenBenchmark();
 
 	return 0;
 }

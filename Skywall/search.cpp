@@ -34,7 +34,6 @@ struct TTentry {
 };
 
 chrono::high_resolution_clock::time_point start;
-Board board;
 
 vector<TTentry> transpositionTable;
 
@@ -55,7 +54,7 @@ int maxEval;
 int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
 // Sourcing SEE based on clarity and stormphrax
-int estimatedMoveValue(Move m, int flag) {
+int estimatedMoveValue(Board& board, Move m, int flag) {
 	int value = seeValues[board.rawBoard[m.getEndSquare()] % 8]->value;
 
 	if (flag > 1 && flag < 6) {
@@ -69,7 +68,7 @@ int estimatedMoveValue(Move m, int flag) {
 	return value;
 }
 
-bool see(Move m, int threshhold) {
+bool see(Board& board, Move m, int threshhold) {
 	int startSquare = m.getStartSquare();
 	int endSquare = m.getEndSquare();
 	int flag = m.getFlag();
@@ -81,7 +80,7 @@ bool see(Move m, int threshhold) {
 		nextVictim = flag + 1;
 	}
 
-	int balance = estimatedMoveValue(m, flag) - threshhold;
+	int balance = estimatedMoveValue(board, m, flag) - threshhold;
 
 	if (balance < 0)
 		return false;
@@ -157,7 +156,7 @@ bool see(Move m, int threshhold) {
 	return board.currentPlayer != color;
 }
 
-int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
+int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 	uint64_t currentHash = board.boardStates.back().zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
 
@@ -226,7 +225,7 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 
 		Move move = allMoves[i];
 
-		bool seeResult = !see(move, 0);
+		bool seeResult = !see(board, move, 0);
 		if (seeResult) {	// Ignoring bad captures during qsearch
 			continue;
 		}
@@ -234,7 +233,7 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 		board.makeMove(move);
 		board.nodes++;
 
-		currentScore = -qsearch(depth - 1, plyFromRoot + 1, -beta, -alpha);
+		currentScore = -qsearch(board, depth - 1, plyFromRoot + 1, -beta, -alpha);
 
 		board.undoMove(move);
 
@@ -294,12 +293,12 @@ int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 	return bestScore;
 }
 
-int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
+int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
 	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool qsearchStatus = depth <= 0;
 
 	if (qsearchStatus && !inCheck) {
-		return qsearch(depth, plyFromRoot, alpha, beta);
+		return qsearch(board, depth, plyFromRoot, alpha, beta);
 	}
 
 	uint64_t currentHash = board.boardStates.back().zobristHash;
@@ -343,7 +342,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		if (nullMovePruningAllowed && depth >= nmpDepth.value) {
 			board.makeNullMove();
-			int nullMoveScore = -negamax(depth - nmpBaseReduction.value - depth / nmpScaleReduction.value, plyFromRoot + 1, -beta, -alpha, false, Move());
+			int nullMoveScore = -negamax(board, depth - nmpBaseReduction.value - depth / nmpScaleReduction.value, plyFromRoot + 1, -beta, -alpha, false, Move());
 			board.undoNullMove();
 
 			if (nullMoveScore >= beta) {
@@ -373,7 +372,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		else if (board.isCapture(allMoves[i])) {	// MVV + SEE
 			score += mvvValues[(board.rawBoard[allMoves[i].getEndSquare()] % 8)]->value;	// MVV
 
-			if (see(allMoves[i], 0)) {	// good captures
+			if (see(board, allMoves[i], 0)) {	// good captures
 				score += 500000;
 			}
 			else {
@@ -433,7 +432,7 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 
 		// See Pruning
 		if (!pvNode && !inCheck) {
-			if (depth < seePDepth.value && !see(move, depth * (board.isCapture(move) ? seeCPScale.value : seeQPScale.value)) ) {
+			if (depth < seePDepth.value && !see(board, move, depth * (board.isCapture(move) ? seeCPScale.value : seeQPScale.value)) ) {
 				continue;
 			}
 		}
@@ -471,17 +470,17 @@ int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePrunin
 		}
 		
 		if (i == 0) {
-			currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
+			currentScore = -negamax(board, newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
 		}
 		else {
-			currentScore = -negamax(newDepth - reductions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
+			currentScore = -negamax(board, newDepth - reductions, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
 
 			if (currentScore > alpha && reductions > 0) {
-				currentScore = -negamax(newDepth, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
+				currentScore = -negamax(board, newDepth, plyFromRoot + 1, -alpha - 1, -alpha, nullMovePruningAllowed, move);
 			}
 
 			if (currentScore > alpha && pvNode) {
-				currentScore = -negamax(newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
+				currentScore = -negamax(board, newDepth, plyFromRoot + 1, -beta, -alpha, nullMovePruningAllowed, move);
 			}
 		}
 
@@ -590,11 +589,10 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		cout << "Time\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
 	}
 
-	board = relevantBoard;
 	start = chrono::high_resolution_clock::now();
 
 	for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < maxDepth;) {
-		int score = negamax(chosenDepth, 0, alpha, beta, true, Move());
+		int score = negamax(relevantBoard, chosenDepth, 0, alpha, beta, true, Move());
 
 		auto end = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
@@ -611,9 +609,9 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 			cout << chosenDepth << "\t\t";
 			cout << moveToPlay.printMove() << " \t\t";
 			cout << score << "\t\t";
-			cout << board.lookups << "\t\t";
-			cout << board.ttEntries << "\t\t";
-			cout << board.nodes << "\n";
+			cout << relevantBoard.lookups << "\t\t";
+			cout << relevantBoard.ttEntries << "\t\t";
+			cout << relevantBoard.nodes << "\n";
 
 			chosenDepth++;
 			alpha = score - aspWindow.value;
@@ -622,5 +620,5 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		}
 	}
 
-	return moveToPlay.rawValue == 0 ? board.generateLegalMovesV2(false)[0] : moveToPlay;
+	return moveToPlay.rawValue == 0 ? relevantBoard.generateLegalMovesV2(false)[0] : moveToPlay;
 }
