@@ -30,18 +30,16 @@ uint64_t moveChecker(int depth, bool testingCaptures) {
 
 		//cout << testBoard.zobristHashCalc() << "\n";
 
-		testBoard.makeMove(move);
+		testBoard.makeRawMove(move);
 
-		/*if (testBoard.boardStates.back().zobristHash != testBoard.zobristHashCalc()) {
-			cout << testBoard.boardStates.back().zobristHash << "\n";
-			cout << testBoard.zobristHashCalc() << "\n";
-			cout << "Error error, Zobrist hash break" << "\n";
+		/*if (move.getEndSquare() == 35 && move.getStartSquare() == 51) {
+			cout << "Here\n";
 		}*/
 
 		uint64_t movesMade = moveChecker(depth - 1, testingCaptures);
 		nodes += movesMade;
 
-		testBoard.undoMove(move);
+		testBoard.undoRawMove(move);
 
 		if (DEBUG == 1 && depth == testDepth) {
 			cout << move.printMove() << " - " << movesMade << "\n";
@@ -93,10 +91,10 @@ void perftTest() {
 	
 	testDepth = 5;
 	testBoard.loadBoardFromFen(FENs[1]);
-	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4K1R b kq - 1 1");
-	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q2/PPPBBPpP/R4K1R w kq - 0 2");
-	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1P6/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2");
-	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");
+	//testBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/1P6/8/P1PPPPPP/RNBQKBNR b KQkq b3 0 1");
+	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/p7/8/1P6/8/P1PPPPPP/RNBQKBNR w KQkq - 0 2");
+	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/p7/1P6/8/8/P1PPPPPP/RNBQKBNR b KQkq - 0 2");
+	//testBoard.loadBoardFromFen("rnbqkbnr/1pp1pppp/p7/1P1p4/8/8/P1PPPPPP/RNBQKBNR w KQkq d6 0 3");
 
 	// breaks here
 	uint64_t result = moveChecker(testDepth, false);
@@ -156,19 +154,57 @@ void movegenBenchmark() {
 
 	auto start = chrono::high_resolution_clock::now();
 	for (int line = 0; line < 128; line++) {
-		cout << line << "\n";
+		//cout << line << "\n";
 		testBoard.loadBoardFromFen(FENs[line]);
 
-		for (int repCount = 0; repCount < 524288; repCount++) {
-			vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+		for (int repCount = 0; repCount < 5242880; repCount++) {
+			vector<Move> allMoves(256);
+			int index = 0;
+			uint64_t pawnBoard = testBoard.occupiedBoard[1] & testBoard.pieceBoards[2];
+
+			while (pawnBoard != 0) {
+				int square = popLSB(pawnBoard);
+				index += testBoard.generatePawnMovesV2(square, allMoves, index, 1);
+			}
+
+			pawnBoard = testBoard.occupiedBoard[2] & testBoard.pieceBoards[2];
+
+			while (pawnBoard != 0) {
+				int square = popLSB(pawnBoard);
+				index += testBoard.generatePawnMovesV2(square, allMoves, index, 2);
+			}
+
+			//vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+
 		}
 	}
 	auto stop = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-	cout << "Movegen Time: " << duration.count() << " microseconds\n";
-	double moveGenSpeed = (67108864.0) / (duration.count());
-	printf("Movegen speed: %f gps\n\n\n", moveGenSpeed);
+	cout << "New Movegen Time: " << duration.count() << " microseconds\n";
+	double moveGenSpeed = (671088640.0) / (duration.count());
+	printf("New Movegen speed: %f gps\n\n\n", moveGenSpeed);
+
+	start = chrono::high_resolution_clock::now();
+	for (int line = 0; line < 128; line++) {
+		//cout << line << "\n";
+		testBoard.loadBoardFromFen(FENs[line]);
+
+		for (int repCount = 0; repCount < 5242880; repCount++) {
+			vector<Move> allMoves(256);
+			int index = 0;
+			testBoard.generatePawnMovesV3(allMoves, index, 1);
+			testBoard.generatePawnMovesV3(allMoves, index, 2);
+			//vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+
+		}
+	}
+	stop = chrono::high_resolution_clock::now();
+	duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+
+	cout << "Old Movegen Time: " << duration.count() << " microseconds\n";
+	moveGenSpeed = (671088640.0) / (duration.count());
+	printf("Old Movegen speed: %f gps\n\n\n", moveGenSpeed);
 
 	start = chrono::high_resolution_clock::now();
 	double moveCount = 0;
@@ -178,9 +214,9 @@ void movegenBenchmark() {
 		vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
 		for (int repCount = 0; repCount < 32678; repCount++) {
 			for (Move move : allMoves) {
-				testBoard.makeMove(move);
+				testBoard.makeRawMove(move);
 				moveCount++;
-				testBoard.undoMove(move);
+				testBoard.undoRawMove(move);
 			}
 		}
 	}

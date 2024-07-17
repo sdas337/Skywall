@@ -85,7 +85,7 @@ public:
 		return rawBoard[pieceRemovalSquare] != 0;
 	}
 
-	void makeMove(Move move) {
+	void makeRawMove(Move move) {
 		BoardStateInformation newInfo = boardStates.back();
 
 		int startSquare = move.getStartSquare();
@@ -221,7 +221,7 @@ public:
 		currentPlayer = currentPlayer % 2 + 1;
 	}
 
-	void undoMove(Move move) {
+	void undoRawMove(Move move) {
 		int startSquare = move.getStartSquare();
 		int targetSquare = move.getEndSquare();
 		int pieceRemovalSquare = targetSquare;
@@ -307,6 +307,14 @@ public:
 
 		currentPlayer = currentPlayer % 2 + 1;
 		plyCount--;
+	}
+
+	void makeMove(Move move) {	// Setting these up for incremental purposes later
+		makeRawMove(move);
+	}
+
+	void undoMove(Move move) { // Setting these up for incremental purposes later
+		undoRawMove(move);
 	}
 
 	// Checking if we're in check 
@@ -740,7 +748,6 @@ public:
 		return rawHash;
 	}
 
-
 	uint64_t getAttackers(int square, uint64_t comboOB) {
 		uint64_t attackerBoard = 0ull;
 
@@ -784,7 +791,6 @@ public:
 		return attackerBoard;
 	}
 
-
 	uint64_t generateRookMoves(int square, uint64_t blockerBitboard) {
 		uint64_t slidingMoveBitboard = 0ull;
 
@@ -815,6 +821,162 @@ public:
 		slidingMoveBitboard = lookup_table[tableIndex];
 
 		return slidingMoveBitboard;
+	}
+
+	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
+		int movesGenerated = 0;
+		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
+
+		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
+
+		uint64_t validForwardPawnMoves = (currentPawnMask) & ~(totalOccupiedBoard);
+
+		if (validForwardPawnMoves != 0) {
+			if (square / 8 == 1 && wantedPlayer == 1) {
+				int targetSquare = square + 16;
+				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
+					moves[insertionIndex] = Move(square, targetSquare, 7);
+					insertionIndex++;
+					movesGenerated++;
+				}
+			}
+			else if (square / 8 == 6 && wantedPlayer == 2) {
+				int targetSquare = square - 16;
+				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
+					moves[insertionIndex] = Move(square, targetSquare, 7);
+					insertionIndex++;
+					movesGenerated++;
+				}
+			}
+		}
+
+		if (boardStates.back().enPassantSquare >= 0 && boardStates.back().enPassantSquare < 64) {	// En passant Move
+			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates.back().enPassantSquare);
+			if (enPassant != 0ull) {
+				moves[insertionIndex] = Move(square, boardStates.back().enPassantSquare, 1);
+				insertionIndex++;
+				movesGenerated++;
+			}
+		}
+
+		uint64_t validPawnMoves = generatePawnAttacks(square, wantedPlayer) | validForwardPawnMoves;
+
+		while (validPawnMoves != 0) {
+			int targetSquare = popLSB(validPawnMoves);
+
+			if (targetSquare / 8 == 0 || targetSquare / 8 == 7) {
+				for (int flag = 2; flag <= 5; flag++) {
+					moves[insertionIndex] = Move(square, targetSquare, flag);
+					insertionIndex++;
+					movesGenerated++;
+				}
+			}
+			else {
+				moves[insertionIndex] = Move(square, targetSquare, 0);
+				insertionIndex++;
+				movesGenerated++;
+			}
+		}
+		return movesGenerated;
+	}
+
+	void generatePawnMovesV3(vector<Move>& moves, int& insertionIndex, int wantedPlayer) {
+		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
+		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
+
+		uint64_t pawnBoard = relevantOccupiedBoard & pieceBoards[2];
+		uint64_t emptyBoard = ~(occupiedBoard[1] | occupiedBoard[2]);
+
+		// Single Pawn Push
+		uint64_t pawnPushes = (wantedPlayer == 1 ? pawnBoard << 8 : pawnBoard >> 8) & emptyBoard;
+
+		// Double Pawn Push
+		uint64_t doublePawnPushes = (wantedPlayer == 1 ? 0xff0000ul : 0xff0000000000ul) & pawnPushes;
+		doublePawnPushes = (wantedPlayer == 1 ? doublePawnPushes << 8 : doublePawnPushes >> 8) & emptyBoard;
+
+		// Pawn Promotions From push
+		uint64_t pawnPushPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & pawnPushes;
+		pawnPushes ^= pawnPushPromotions;
+
+		while (pawnPushes != 0) {
+			int targetSquare = popLSB(pawnPushes);
+			int startSquare = targetSquare - directions[wantedPlayer - 1];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+		while (doublePawnPushes != 0) {
+			int targetSquare = popLSB(doublePawnPushes);
+			int startSquare = targetSquare - directions[wantedPlayer - 1] * 2;
+			moves[insertionIndex] = Move(startSquare, targetSquare, 7);
+			insertionIndex++;
+		}
+
+		while (pawnPushPromotions != 0) {
+			int targetSquare = popLSB(pawnPushPromotions);
+			int startSquare = targetSquare - directions[wantedPlayer - 1];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		// Captures
+		uint64_t leftCaptures = (wantedPlayer == 1 ? pawnBoard << 7 : pawnBoard >> 9) & otherOccupiedBoard;
+		leftCaptures = leftCaptures & 0x7f7f7f7f7f7f7f7ful;	// Left Captures that end up on rightmost column started on leftmost col
+
+		uint64_t lcPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & leftCaptures;
+		leftCaptures ^= lcPromotions;
+
+		uint64_t rightCaptures = (wantedPlayer == 1 ? pawnBoard << 9 : pawnBoard >> 7) & otherOccupiedBoard;
+		rightCaptures = rightCaptures & 0xfefefefefefefefeul;	// Right Captures that end up on leftmost column started on rightmost col
+
+		uint64_t rcPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & rightCaptures;
+		rightCaptures ^= rcPromotions;
+
+		while (leftCaptures != 0) {
+			int targetSquare = popLSB(leftCaptures);
+			int startSquare = targetSquare + directions[3 * wantedPlayer + 1];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+		while (rightCaptures != 0) {
+			int targetSquare = popLSB(rightCaptures);
+			int startSquare = targetSquare + directions[7 - wantedPlayer];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+
+		while (lcPromotions != 0) {
+			int targetSquare = popLSB(lcPromotions);
+			int startSquare = targetSquare + directions[3 * wantedPlayer + 1];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		while (rcPromotions != 0) {
+			int targetSquare = popLSB(rcPromotions);
+			int startSquare = targetSquare + directions[7 - wantedPlayer];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		// En Passant
+		if (boardStates.back().enPassantSquare != 64) {
+			uint64_t validEnPassantAttack = generatePawnAttacks(boardStates.back().enPassantSquare, wantedPlayer % 2 + 1) & pieceBoards[2];
+			while (validEnPassantAttack != 0) {
+				int startSquare = popLSB(validEnPassantAttack);
+				moves[insertionIndex] = Move(startSquare, boardStates.back().enPassantSquare, 1);
+				insertionIndex++;
+			}
+		}
+
 	}
 
 
@@ -1006,62 +1168,6 @@ private:
 		return currentPawnMask & otherOccupiedBoard;
 	}
 
-	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
-		int movesGenerated = 0;
-		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
-
-		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
-		
-		uint64_t validForwardPawnMoves = (currentPawnMask) & ~(totalOccupiedBoard);
-
-		if (validForwardPawnMoves != 0) {
-			if (square / 8 == 1 && wantedPlayer == 1) {
-				int targetSquare = square + 16;
-				if((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
-					moves[insertionIndex] = Move(square, targetSquare, 7);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-			else if (square / 8 == 6 && wantedPlayer == 2) {
-				int targetSquare = square - 16;
-				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
-					moves[insertionIndex] = Move(square, targetSquare, 7);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-		}
-
-		if (boardStates.back().enPassantSquare >= 0 && boardStates.back().enPassantSquare < 64) {	// En passant Move
-			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates.back().enPassantSquare);
-			if (enPassant != 0ull) {
-				moves[insertionIndex] = Move(square, boardStates.back().enPassantSquare, 1);
-				insertionIndex++;
-				movesGenerated++;
-			}
-		}
-
-		uint64_t validPawnMoves = generatePawnAttacks(square, wantedPlayer) | validForwardPawnMoves;
-
-		while (validPawnMoves != 0) {
-			int targetSquare = popLSB(validPawnMoves);
-
-			if (targetSquare / 8 == 0 || targetSquare / 8 == 7) {
-				for (int flag = 2; flag <= 5; flag++) {
-					moves[insertionIndex] = Move(square, targetSquare, flag);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-			else {
-				moves[insertionIndex] = Move(square, targetSquare, 0);
-				insertionIndex++;
-				movesGenerated++;
-			}
-		}
-		return movesGenerated;
-	}
 	
 	uint64_t generateKnightMoves(int square, int safePlayer) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
@@ -1074,7 +1180,7 @@ private:
 		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
 
 		uint64_t kingBoard = relevantOccupiedBoard & pieceBoards[1];
-		uint64_t pawnBoard = relevantOccupiedBoard & pieceBoards[2];
+		//uint64_t pawnBoard = relevantOccupiedBoard & pieceBoards[2];
 		uint64_t knightBoard = relevantOccupiedBoard & pieceBoards[3];
 		uint64_t bishopBoard = relevantOccupiedBoard & pieceBoards[4];
 		uint64_t rookBoard = relevantOccupiedBoard & pieceBoards[5];
@@ -1082,10 +1188,12 @@ private:
 
 		insertionIndex += generateKingMovesV2(popLSB(kingBoard), listOfMoves, insertionIndex, wantedPlayer);
 
-		while (pawnBoard != 0) {
+		/*while (pawnBoard != 0) {
 			int square = popLSB(pawnBoard);
 			insertionIndex += generatePawnMovesV2(square, listOfMoves, insertionIndex, wantedPlayer);
-		}
+		}*/
+
+		generatePawnMovesV3(listOfMoves, insertionIndex, wantedPlayer);
 
 		while (knightBoard != 0) {
 			int square = popLSB(knightBoard);

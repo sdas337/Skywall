@@ -342,7 +342,7 @@ int main()
 
 	//testing();
 	//outputTunableJSON();
-	uciHandling();
+	//uciHandling();
 
 	//bench(10);
 
@@ -358,7 +358,7 @@ int main()
 
 	//searchBoard(mainBoard, 1000 * 480, 0, 15);
 
-	//movegenBenchmark();
+	movegenBenchmark();
 
 	return 0;
 }
