@@ -43,7 +43,7 @@ TuneValue aspWindow("aspWindow", 80, 3, 150, 5);
 
 TuneValue iirDepth("iirDepth", 4, 0, 10, 1);
 
-TuneValue None("None", 0, 0, 0, 0);
+TuneValue None("None", 0, 0, 0, 1);
 TuneValue mvvKing("mvvKing", 0, 0, 2000, 10);
 TuneValue mvvPawn("mvvPawn", 91, 0, 2000, 10);
 TuneValue mvvKnight("mvvKnight", 401, 0, 2000, 10);

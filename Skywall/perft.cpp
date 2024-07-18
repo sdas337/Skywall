@@ -30,7 +30,7 @@ uint64_t moveChecker(int depth, bool testingCaptures) {
 
 		//cout << testBoard.zobristHashCalc() << "\n";
 
-		testBoard.makeMove(move);
+		testBoard.makeRawMove(move);
 
 		/*if (testBoard.boardStates.back().zobristHash != testBoard.zobristHashCalc()) {
 			cout << testBoard.boardStates.back().zobristHash << "\n";
@@ -41,7 +41,7 @@ uint64_t moveChecker(int depth, bool testingCaptures) {
 		uint64_t movesMade = moveChecker(depth - 1, testingCaptures);
 		nodes += movesMade;
 
-		testBoard.undoMove(move);
+		testBoard.undoRawMove(move);
 
 		if (DEBUG == 1 && depth == testDepth) {
 			cout << move.printMove() << " - " << movesMade << "\n";
@@ -155,20 +155,25 @@ void movegenBenchmark() {
 	importPerftTest();
 
 	auto start = chrono::high_resolution_clock::now();
-	for (int line = 0; line < 128; line++) {
-		cout << line << "\n";
-		testBoard.loadBoardFromFen(FENs[line]);
-
-		for (int repCount = 0; repCount < 524288; repCount++) {
-			vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
-		}
-	}
 	auto stop = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-	cout << "Movegen Time: " << duration.count() << " microseconds\n";
-	double moveGenSpeed = (67108864.0) / (duration.count());
-	printf("Movegen speed: %f gps\n\n\n", moveGenSpeed);
+	for (int line = 0; line < 128; line++) {
+		//cout << line << "\n";
+		testBoard.loadBoardFromFen(FENs[line]);
+		start = chrono::high_resolution_clock::now();
+		for (int repCount = 0; repCount < 2097152; repCount++) {
+			testBoard.generateAttacksV3(1);
+			testBoard.generateAttacksV3(2);
+			//vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
+		}
+		stop = chrono::high_resolution_clock::now();
+		duration += chrono::duration_cast<chrono::microseconds>(stop - start);
+	}
+	
+	cout << "Attack Gen Time: " << duration.count() << " microseconds\n";
+	double moveGenSpeed = (268435456.0) / (duration.count());
+	printf("Attack Gen speed: %f gen per microsecond\n\n\n", moveGenSpeed);
 
 	start = chrono::high_resolution_clock::now();
 	double moveCount = 0;
@@ -178,9 +183,9 @@ void movegenBenchmark() {
 		vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
 		for (int repCount = 0; repCount < 32678; repCount++) {
 			for (Move move : allMoves) {
-				testBoard.makeMove(move);
+				testBoard.makeRawMove(move);
 				moveCount++;
-				testBoard.undoMove(move);
+				testBoard.undoRawMove(move);
 			}
 		}
 	}

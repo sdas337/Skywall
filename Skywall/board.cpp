@@ -85,7 +85,7 @@ public:
 		return rawBoard[pieceRemovalSquare] != 0;
 	}
 
-	void makeMove(Move move) {
+	void makeRawMove(Move move) {
 		BoardStateInformation newInfo = boardStates.back();
 
 		int startSquare = move.getStartSquare();
@@ -221,7 +221,7 @@ public:
 		currentPlayer = currentPlayer % 2 + 1;
 	}
 
-	void undoMove(Move move) {
+	void undoRawMove(Move move) {
 		int startSquare = move.getStartSquare();
 		int targetSquare = move.getEndSquare();
 		int pieceRemovalSquare = targetSquare;
@@ -290,6 +290,14 @@ public:
 
 	}
 
+	void makeMove(Move move) {
+		makeRawMove(move);
+	}
+
+	void undoMove(Move move) {
+		undoRawMove(move);
+	}
+
 	void makeNullMove() {
 		BoardStateInformation newInfo = boardStates.back();
 
@@ -337,29 +345,6 @@ public:
 		if (generatePawnAttacks(kingLocations[player], player) & pieceBoards[2]) {
 			return true;
 		}
-
-		return false;
-
-		// Pawn positions
-		/*int direction;
-		if (otherPlayer == 1) {
-			direction = -8;
-		}
-		else {
-			direction = 8;
-		}
-
-		for (int i = direction - 1; i < direction + 2; i += 2) {
-			int targetSquare = kingLocations[player] + i;
-			if (targetSquare < 0 || targetSquare > 63)
-				continue;
-			if (abs(targetSquare / 8 - kingLocations[player] / 8) != 1)
-				continue;
-			//if (rawBoard[targetSquare] == (otherPlayer * 8 | 2)) {
-			if( (occupiedBoard[otherPlayer] & (pieceBoards[2]) & (1ull << targetSquare)) ) {
-				return true;
-			}
-		}*/
 
 		return false;
 	}
@@ -624,8 +609,8 @@ public:
 
 		calculateZobristHash();
 
-		generateAttacksV2(1);
-		generateAttacksV2(2);
+		generateAttacksV3(1);
+		generateAttacksV3(2);
 	}
 
 	Board() {
@@ -740,7 +725,6 @@ public:
 		return rawHash;
 	}
 
-
 	uint64_t getAttackers(int square, uint64_t comboOB) {
 		uint64_t attackerBoard = 0ull;
 
@@ -783,7 +767,6 @@ public:
 
 		return attackerBoard;
 	}
-
 
 	uint64_t generateRookMoves(int square, uint64_t blockerBitboard) {
 		uint64_t slidingMoveBitboard = 0ull;
@@ -962,7 +945,7 @@ private:
 			if (emptyArea == 0ull) {
 				// Check that no enemy pieces are attacking there
 				uint64_t areaWithoutAttacksMask = (relevantRowMask | (1ull << square));
-				generateAttacksV2(otherPlayer);
+				generateAttacksV3(otherPlayer);
 
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
 				if (area == 0ull) {
@@ -982,7 +965,7 @@ private:
 				// Check that no enemy pieces are attacking there
 				uint64_t areaWithoutAttacksMask = relevantRowMask & ~(1ull << (square - 3));
 				areaWithoutAttacksMask |= (1ull << square);
-				generateAttacksV2(otherPlayer);
+				generateAttacksV3(otherPlayer);
 
 				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
 				if (area == 0ull) {
@@ -1069,6 +1052,8 @@ private:
 		return legalMoveBoard & ~occupiedBoard[safePlayer];
 	}
 
+
+public:
 	int generatePseudoLegalMovesV3(vector<Move>& listOfMoves, int wantedPlayer) {
 		int insertionIndex = 0;
 		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
@@ -1142,6 +1127,55 @@ private:
 		return insertionIndex;
 	}
 	
+	void generateAttacksV3(int wantedPlayer) {
+		int square;
+
+		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
+		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
+		uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
+		uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
+		uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
+
+		attackingSquares[wantedPlayer] = validKingMoves[square];
+
+		uint64_t attackBoard;
+
+		while (pawnBoard != 0) {	// Pawn Attacks
+			square = popLSB(pawnBoard);
+
+			attackingSquares[wantedPlayer] |= validPawnCaptureMasks[square][wantedPlayer];
+		}
+
+		while (knightBoard != 0) {	// Knight Attacks
+			square = popLSB(knightBoard);
+
+			attackingSquares[wantedPlayer] |= validKnightMoves[square];
+		}
+
+		while (bishopBoard != 0) {	// Bishop Attacks
+			square = popLSB(bishopBoard);
+			attackBoard = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+
+			attackingSquares[wantedPlayer] |= attackBoard;
+		}
+
+		while (rookBoard != 0) {	// Rook Attacks
+			square = popLSB(rookBoard);
+			attackBoard = generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+
+			attackingSquares[wantedPlayer] |= attackBoard;
+		}
+
+		while (queenBoard != 0) {	// Queen Attacks
+			square = popLSB(queenBoard);
+			attackBoard = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+			attackBoard |= generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
+
+			attackingSquares[wantedPlayer] |= attackBoard;
+		}
+
+	}
+
 	void generateAttacksV2(int wantedPlayer) {
 		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
 		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
