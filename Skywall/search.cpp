@@ -300,6 +300,8 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 	bool inCheck = board.sideInCheck(board.currentPlayer);
 	bool qsearchStatus = depth <= 0;
 
+	searchStack[plyFromRoot].inCheck = inCheck;
+
 	if (qsearchStatus && !inCheck) {
 		return qsearch(board, depth, plyFromRoot, alpha, beta);
 	}
@@ -335,12 +337,25 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 
 	int eval = evaluate(board);
 
-	
+	searchStack[plyFromRoot].evalScore = eval;
+	bool improving = false;
+	if (inCheck) {
+		improving = false;
+	}
+	else if (plyFromRoot > 1 && !searchStack[plyFromRoot - 2].inCheck) {
+		improving = eval > searchStack[plyFromRoot - 2].evalScore;
+	}
+	else if (plyFromRoot > 3 && !searchStack[plyFromRoot - 4].inCheck) {
+		improving = eval > searchStack[plyFromRoot - 4].evalScore;
+	}
+	else {
+		improving = true;
+	}
 
 
 	if (!pvNode && !inCheck) {	// Pruning Technique Location
 		// Testing out rf pruning
-		int rfPruningMargin = rfPruningBase.value * depth;
+		int rfPruningMargin = (rfPruningBase.value) * depth;
 		if (depth <= rfpDepth.value && eval - rfPruningMargin >= beta) {
 			return eval - rfPruningMargin;
 		}
@@ -472,6 +487,8 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		// Late Move Reduction
 		if (!inCheck && !tmpCheckStatus && !importantMoves && i >= lmrMoveCount.value && depth > lmrDepth.value) {
 			reductions = lmrReductions[depth][i];
+
+			//reductions += !improving;
 		}
 		
 		if (i == 0) {
