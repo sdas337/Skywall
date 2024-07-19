@@ -1,5 +1,3 @@
-#pragma once
-
 #include "globals.h"
 
 using namespace std;
@@ -74,4 +72,8 @@ void setupLMR() {
             lmrReductions[depth][moveCount] = (int)(base + log(depth) * log(moveCount) / div);
         }
     }
+}
+
+bool operator==(const Move& lhs, const Move& rhs) {
+    return lhs.rawValue == rhs.rawValue;
 }

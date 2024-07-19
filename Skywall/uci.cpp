@@ -1,13 +1,10 @@
-﻿#pragma once
-
+﻿
 // uci.cpp : Defines the entry point for the application..
 // Responsible for UCI handling
 
 #include "globals.h"
 
-#include "perft.cpp"
-#include "search.cpp"
-
+#include "tests.h"
 
 using namespace std;
 
@@ -27,116 +24,6 @@ void testing() {
 	uint64_t nodesPerSecond = (testBoard.nodes * 1000000000ull) / (duration.count());
 
 	printf("%llu nps", nodesPerSecond);
-
-}
-
-void seeTest() {
-	std::ifstream inputFile("../../../testFiles/SEE.txt");
-	
-
-	//                   P    N    B    R    Q    K  NONE
-	//SEE_PIECE_VALUES = { 100, 300, 300, 500, 900, 0, 0 };
-
-	int failed = 0, passed = 0;
-	int lineCount = 0;
-
-	std::string line;
-	while (std::getline(inputFile, line))
-	{
-		std::stringstream iss(line);
-		std::vector<std::string> tokens = splitString(line, '|');
-
-		std::string fen = tokens[0];
-		std::string uciMove = tokens[1];
-		int gain = stoi(tokens[2]);
-		bool expected = gain >= 0;
-
-		Board tmpBoard = Board();
-		tmpBoard.loadBoardFromFen(fen);
-
-		Move currentMove;
-
-		tmpBoard.setMoveFromString(currentMove, uciMove);
-
-		bool result = see(tmpBoard, currentMove, 0);
-
-		if (result == expected)
-			passed++;
-		else {
-			std::cout << "FAILED " << fen << " | " << uciMove << " | Gain: " << gain << std::endl;
-			failed++;
-		}
-		lineCount++;
-	}
-
-	inputFile.close();
-	std::cout << "Passed: " << passed << std::endl;
-	std::cout << "Failed: " << failed << std::endl;
-}
-
-void evalTuningTest() {
-	ifstream file("../../../testFiles/uciTestFens.epd");
-
-	if (file.is_open()) {	// Reading in all the tests
-		int lineCount = 0;
-		string line;
-		while (getline(file, line)) {
-			// using printf() in all tests for consistency
-
-			if (lineCount > 0) {
-				break;
-			}
-
-			string fenString = line.substr(0, line.find(";") - 1);
-			//FENs[lineCount] = fenString;
-			//printf("%s\n", fenString.c_str());
-
-			mainBoard.loadBoardFromFen(fenString);
-			cout << fenString << "; [1.0]\n";
-
-			cout << " Eval: " << evaluate(mainBoard) << "\n";
-
-
-			lineCount++;
-		}
-		file.close();
-
-		printf("Finished reading in all tests\n");
-	}
-	
-}
-
-void bench(int depth) {
-	importPerftTest();
-
-	uint64_t totalNodes = 0ull;
-
-	auto start = chrono::high_resolution_clock::now();
-
-	for (int line = 0; line < 128; line++) {
-		for (uint32_t i = 0; i < actual_TT_Size; i++)
-			transpositionTable[i] = TTentry();
-
-		printf("Position %d\n", line);
-		testBoard.loadBoardFromFen(FENs[line]);
-
-		searchBoard(testBoard, 1000 * 60 * 60, 0, depth);
-
-		printf("\n");
-
-		totalNodes += testBoard.nodes;
-		testBoard.nodes = 0ull;
-	}
-
-	auto stop = chrono::high_resolution_clock::now();
-
-	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-	cout << duration.count() << " milliseconds\n";
-
-	cout << totalNodes << " nodes\n";
-
-	uint64_t moveGenSpeed = (totalNodes * 1000) / (duration.count());
-	printf("%llu nps\n", moveGenSpeed);
 
 }
 

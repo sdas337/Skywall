@@ -3,23 +3,36 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-# Enable Hot Reload for MSVC compilers if supported.
-if (POLICY CMP0141)
-  cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
+project(Skywall VERSION 0.3.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 project ("Skywall")
 
+set(SRC_Files
+"uci.cpp"
+"globals.cpp"
+"tunable.cpp"
+"eval.cpp"
+"magics.cpp"
+"move.cpp"
+"tests.cpp"
+"search.cpp"
+"board.cpp"
+)
+
 # Add source to this project's executable.
-add_executable (Skywall "uci.cpp"  "globals.h" "globals.cpp" "tunable.cpp" "eval.h")
+add_executable (Skywall ${SRC_Files} "magics.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Skywall PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: Add tests and install targets if needed.
-if(MSVC)
-  target_compile_options(Skywall PUBLIC "/O2")
-  #target_link_options(Skywall PUBLIC "/INCREMENTAL")
-endif()
+
+target_compile_options(Skywall PUBLIC -Wall -Wextra -Wpedantic -march=native -O3 -flto)
+
+target_link_options(Skywall PUBLIC -fsanitize=undefined)
+target_link_libraries(Skywall -static)

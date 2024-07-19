@@ -1,41 +1,10 @@
 #include "globals.h"
-
-#include "board.cpp"
-#include "eval.cpp"
+#include "eval.h"
+#include "search.h"
 
 using namespace std;
 
-extern int lmrReductions[256][256];
-
-uint32_t actual_TT_Size = 1048576;
-
-struct TTentry {
-	uint64_t zobristHash;
-	Move m;
-	uint8_t depth;
-	uint8_t flag;
-	int score;
-
-	TTentry() {
-		zobristHash = 0ull;
-		m = Move(0, 0, 0);
-		depth = 0;
-		score = 0;
-		flag = 0;
-	}
-	TTentry(uint64_t hash, Move move, int s, uint8_t d, uint8_t f) {
-		zobristHash = hash;
-		m = move;
-		depth = d;
-		score = s;
-		flag = f;
-	}
-	
-};
-
 chrono::high_resolution_clock::time_point start;
-
-vector<TTentry> transpositionTable;
 
 int historyTable[2][64][64];
 int qhistoryTable[2][64][64][5];
@@ -55,6 +24,9 @@ struct StackEntry {
 
 StackEntry searchStack[1024];
 
+uint32_t actual_TT_Size = 1048576;
+vector<TTentry> transpositionTable;
+
 int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
 // Sourcing SEE based on clarity and stormphrax
@@ -72,7 +44,7 @@ int estimatedMoveValue(Board& board, Move m, int flag) {
 	return value;
 }
 
-static bool see(Board& board, Move m, int threshhold) {
+bool see(Board& board, Move m, int threshhold) {
 	int startSquare = m.getStartSquare();
 	int endSquare = m.getEndSquare();
 	int flag = m.getFlag();

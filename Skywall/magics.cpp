@@ -1,9 +1,8 @@
-#pragma once
 #include "globals.h"
 
+#include "magics.h"
+
 using namespace std;
-
-
 
 // filter ally vs enemy blockers later
 
@@ -151,11 +150,7 @@ rook_magics[64] =
 	{ 0x0002000308482882ull,   1009 }
 };
 
-struct blackMagicEntries {
-	uint64_t negMask;
-	uint64_t blackMagic;
-	uint64_t tableOffset;
-};
+
 
 blackMagicEntries refinedRookMagics[64];
 blackMagicEntries refinedBishopMagics[64];

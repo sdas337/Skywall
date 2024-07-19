@@ -51,6 +51,108 @@ struct TuneValue {
 
 };
 
+class Move {
+	public:
+		int getStartSquare();
+		int getEndSquare();
+		int getFlag();
+		Move();
+		Move(int startSquare, int endSquare, int flags);
+		string printMove();
+		uint16_t getRawValue();
+		bool isPromotion();
+		uint16_t rawValue;
+};
+
+bool operator==(const Move& lhs, const Move& rhs);
+
+struct BoardStateInformation {
+	bool castlingRights[4];
+	int8_t enPassantSquare;
+	int8_t fiftyMoveCount;
+	int8_t capturedPieceType;
+	uint64_t zobristHash;
+};
+
+class Board {
+public:
+	// A0 = 0, H0 = 7, H8 = 63
+	int rawBoard[64];
+
+	uint64_t nodes = 0;
+	uint64_t lookups = 0;
+	uint64_t ttEntries = 0;
+
+	int plyCount;
+	int currentPlayer;
+
+	uint64_t occupiedBoard[3];
+	uint64_t pieceBoards[8];
+
+	int kingLocations[3];
+	uint64_t attackingSquares[3];
+
+	vector<BoardStateInformation> boardStates;
+
+	char prettyPiecePrint(int row, int col, int pieceAtLoc);
+	void printBoard();
+	void setMoveFromString(Move& m, string currentMove);
+	void loadBoardFromFen(string fen);
+
+	Board();
+
+	void setPiece(int row, int col, int piece);
+	void removePiece(int row, int col);
+	bool isWhitePiece(int row, int col);
+	bool fiftyMoveCheck();
+	bool repeatedPositionCheck();
+	bool isCapture(Move move);
+
+	void makeRawMove(Move move);
+	void undoRawMove(Move move);
+	void makeMove(Move move);
+	void undoMove(Move move);
+	void makeNullMove();
+	void undoNullMove();
+
+	uint64_t zobristHashCalc();
+
+	bool sideInCheck(int player);
+	vector<Move> generateLegalMovesV2(bool onlyCaptures);
+	uint64_t getAttackers(int square, uint64_t comboOB);
+	uint64_t generateRookMoves(int square, uint64_t blockerBitboard);
+	uint64_t generateBishopMoves(int square, uint64_t blockerBitboard);
+
+	int generatePseudoLegalMovesV3(vector<Move>& listOfMoves, int wantedPlayer);
+	void generateAttacksV3(int wantedPlayer);
+
+private:
+	int directions[8] = { 8, -8, -1, 1, -7, 7, -9, 9 };
+	int distanceFromEdge[64][8];
+	uint64_t validKnightMoves[64];
+	uint64_t validKingMoves[64];
+
+	vector<Move> examinedMovesDuringCheck;
+
+	uint64_t validPawnMoveMasks[64][3];
+	uint64_t validPawnCaptureMasks[64][3];
+
+	uint64_t zobPieces[3][7][64];
+	uint64_t zobColor;
+	uint64_t zobCastle[4];
+	uint64_t zobEnPassant[8];
+
+	void generateZobristNumbers();
+	void calculateZobristHash();
+
+	void precomputeDistances();
+	int generateKingMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer);
+	uint64_t generatePawnAttacks(int square, int wantedPlayer);
+	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer);
+	uint64_t generateKnightMoves(int square, int safePlayer);
+};
+
+
 constexpr int32_t S(const int32_t mg, const int32_t eg)
 {
 	//return (eg << 16) + mg;
