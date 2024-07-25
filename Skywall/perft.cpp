@@ -18,12 +18,17 @@ int DEBUG = 0;
 uint64_t moveChecker(int depth, bool testingCaptures) {
 	uint64_t nodes = 0;
 
-	if (depth == 0) {
+	/*if (depth == 0) {
 		testBoard.nodes++;
 		return 1;
-	}
+	}*/
 
 	vector<Move> allMoves = testBoard.generateLegalMovesV2(testingCaptures);
+
+	if (depth == 1) {
+		testBoard.nodes += allMoves.size();
+		return allMoves.size();
+	}
 
 	for (uint8_t i = 0; i < allMoves.size(); i++) {
 		Move move = allMoves[i];
@@ -126,7 +131,7 @@ void completePerftTest() {
 			int depth = perftTestResults[line][z].first;
 			uint64_t moveCount = perftTestResults[line][z].second;
 
-			if (depth > 6) {
+			if (depth > 5) {
 				continue;
 			}
 
