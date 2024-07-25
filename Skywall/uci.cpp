@@ -340,10 +340,10 @@ int main()
 	//evalTuningTest();
 	//seeTest();
 
-	testing();
+	//testing();
 	//outputTunableJSON();
 	
-	//uciHandling();
+	uciHandling();
 
 	//bench(10);
 
