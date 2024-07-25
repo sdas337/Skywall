@@ -68,15 +68,17 @@ void testEval() {
     return;
 }
 
-int evaluate(Board& board) {
+int evaluate2(Board& board) {
     int score[2] = { S(0, 0), S(0, 0) };
     int bishopCount[2] = { 0,0 };
     int gamePhase = 0;
 
     int buckets[2] = { kingBuckets[board.kingLocations[1]], kingBuckets[board.kingLocations[2] ^ 56] };
 
-    /* evaluate each piece */
-    for (int sq = 0; sq < 64; ++sq) {
+    uint64_t occupiedBoard = board.occupiedBoard[1] | board.occupiedBoard[2];
+    while (occupiedBoard != 0) {
+        int sq = popLSB(occupiedBoard);
+        /* evaluate each piece */
         int piece = board.rawBoard[sq];
 
         if (piece != 0) {

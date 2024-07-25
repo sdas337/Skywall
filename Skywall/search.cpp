@@ -180,7 +180,7 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 		}
 	}
 
-	bestScore = evaluate(board);
+	bestScore = evaluate2(board);
 
 	if (bestScore >= beta) {
 		return bestScore;
@@ -335,7 +335,7 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		depth--;
 	}
 
-	int eval = evaluate(board);
+	int eval = evaluate2(board);
 
 	searchStack[plyFromRoot].evalScore = eval;
 	bool improving = false;

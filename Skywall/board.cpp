@@ -651,23 +651,26 @@ public:
 				continue;
 			}
 
-			bool moveStatus = true;
 			makeMove(move);
-			moveStatus = sideInCheck(origCurrentPlayer);
-			int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
+			bool moveStatus = determineLegalBoardState();
 			undoMove(move);
 
-			if (!moveStatus) {
-				if (kingDistance > 1) {
-					validMoves[moveIndex] = move;
-					moveIndex++;
-				}
+			if (moveStatus) {
+				validMoves[moveIndex] = move;
+				moveIndex++;
 			}
 		}
 
 		validMoves.resize(moveIndex);
 		return validMoves;
 
+	}
+
+	bool determineLegalBoardState() {
+		bool moveStatus = sideInCheck(currentPlayer % 2 + 1);
+		int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
+
+		return !moveStatus && kingDistance > 1;
 	}
 
 	uint64_t zobristHashCalc() {
@@ -1128,7 +1131,7 @@ public:
 	}
 	
 	void generateAttacksV3(int wantedPlayer) {
-		int square;
+		int square = kingLocations[wantedPlayer];
 
 		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
 		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];

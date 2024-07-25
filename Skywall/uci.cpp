@@ -94,7 +94,7 @@ void evalTuningTest() {
 			mainBoard.loadBoardFromFen(fenString);
 			cout << fenString << "; [1.0]\n";
 
-			cout << " Eval: " << evaluate(mainBoard) << "\n";
+			cout << " Eval: " << evaluate2(mainBoard) << "\n";
 
 
 			lineCount++;
@@ -342,6 +342,7 @@ int main()
 
 	//testing();
 	//outputTunableJSON();
+	
 	uciHandling();
 
 	//bench(10);

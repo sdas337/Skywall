@@ -3,4 +3,4 @@
 
 using namespace std;
 
-int evaluate(Board&);
+int evaluate2(Board&);
