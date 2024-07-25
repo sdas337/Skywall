@@ -30,7 +30,7 @@ public:
 		return rawValue >> 12;
 	}
 
-	Move() {
+	constexpr Move() {
 		rawValue = 0;
 	}
 

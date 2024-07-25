@@ -161,7 +161,7 @@ void positionHandling(vector<string> &instruction) {
 			int endSquare = squareNameToValue(currentMove.substr(2, 4));
 
 			if (mainBoard.rawBoard[startSquare] % 8 == 2) {	// Pawn Move
-				if (endSquare == mainBoard.boardStates.back().enPassantSquare) {
+				if (endSquare == mainBoard.boardStates[mainBoard.boardStateIndex].enPassantSquare) {
 					flag = 1;
 				}
 				else if (currentMove.size() == 5) {
@@ -280,7 +280,7 @@ void instructionHandling(string instruction) {
 
 		Move result = searchBoard(mainBoard, time, inc, 64);
 
-		if (result.getRawValue() == 0) {
+		/*if (result.getRawValue() == 0) {
 			ofstream file("../../../testFiles/debugLogs.txt", ofstream::out | ofstream::app);
 			vector<Move> allMoves = mainBoard.generateLegalMovesV2(false);
 			for (Move m : allMoves) {
@@ -289,7 +289,7 @@ void instructionHandling(string instruction) {
 
 			file.close();
 
-		}
+		}*/
 
 		cout << "bestmove " + result.printMove();
 		if (result.getFlag() > 1 && result.getFlag() < 7) {
@@ -342,6 +342,7 @@ int main()
 
 	//testing();
 	//outputTunableJSON();
+
 	
 	uciHandling();
 

@@ -98,7 +98,7 @@ static bool see(Board& board, Move m, int threshhold) {
 	occupied = (occupied ^ (1ull << startSquare)) | (1ull << endSquare);
 
 	if (flag == 1) {
-		occupied ^= (1ull << board.boardStates.back().enPassantSquare);
+		occupied ^= (1ull << board.boardStates[board.boardStateIndex].enPassantSquare);
 	}
 
 	int color = board.currentPlayer % 2 + 1;
@@ -161,7 +161,7 @@ static bool see(Board& board, Move m, int threshhold) {
 }
 
 int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
-	uint64_t currentHash = board.boardStates.back().zobristHash;
+	uint64_t currentHash = board.boardStates[board.boardStateIndex].zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
 
 	bool pvNode = (beta - alpha) > 1;
@@ -187,10 +187,11 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 	}
 	alpha = max(alpha, bestScore);
 
-	vector<Move> allMoves;
-	allMoves = board.generateLegalMovesV2(true);
+	//vector<Move> allMoves;
+	Move allMoves[256];
+	int moveCount = board.generateLegalMovesV2(true, allMoves);
 
-	vector<int> moveScores(allMoves.size());
+	vector<int> moveScores(moveCount);
 	for (size_t i = 0; i < moveScores.size(); i++) {
 		int score = 0;
 
@@ -209,12 +210,12 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 	Move bestMove = Move(0, 0, 0);
 	int currentScore, origAlpha = alpha;
 
-	for (uint8_t i = 0; i < allMoves.size(); i++) {
+	for (uint8_t i = 0; i < moveCount; i++) {
 		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
-		for (uint8_t j = i + 1; j < allMoves.size(); j++) {
+		for (uint8_t j = i + 1; j < moveCount; j++) {
 			if (moveScores[j] > moveScores[i]) {
 				int tmp = moveScores[j];
 				moveScores[j] = moveScores[i];
@@ -306,7 +307,7 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		return qsearch(board, depth, plyFromRoot, alpha, beta);
 	}
 
-	uint64_t currentHash = board.boardStates.back().zobristHash;
+	uint64_t currentHash = board.boardStates[board.boardStateIndex].zobristHash;
 	TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
 
 	bool pvNode = (beta - alpha) > 1;
@@ -371,18 +372,18 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		}
 	}
 
-	vector<Move> allMoves;
-	
-	allMoves = board.generateLegalMovesV2(false);
+	//vector<Move> allMoves;
+	Move allMoves[256];
+	int moveCount = board.generateLegalMovesV2(false, allMoves);
 
-	if (allMoves.size() == 0) {
+	if (moveCount == 0) {
 		if (inCheck)
 			return -900000 + plyFromRoot;
 		return 0;
 	}
 
 	// Order moves portion
-	vector<int> moveScores(allMoves.size());
+	vector<int> moveScores(moveCount);
 	for (size_t i = 0; i < moveScores.size(); i++) {
 		int score = 0;
 
@@ -425,12 +426,12 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		lmpMoves =  lmpQuad.value * depth * depth / 100  + lmpScale.value * depth + lmpBase.value;
 	}
 
-	for (uint8_t i = 0; i < allMoves.size(); i++) {
+	for (uint8_t i = 0; i < moveCount; i++) {
 		if ((board.nodes & 4095) == 0 && chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() > maxTimeForMove)
 			return 900000;
 
 		// Performing selection sort based on move scores above to order
-		for (uint8_t j = i + 1; j < allMoves.size(); j++) {
+		for (uint8_t j = i + 1; j < moveCount; j++) {
 			if (moveScores[j] > moveScores[i]) {
 				int tmp = moveScores[j];
 				moveScores[j] = moveScores[i];
@@ -642,5 +643,5 @@ Move searchBoard(Board &relevantBoard, int time, int inc, int maxDepth) {
 		}
 	}
 
-	return moveToPlay.rawValue == 0 ? relevantBoard.generateLegalMovesV2(false)[0] : moveToPlay;
+	return moveToPlay;
 }

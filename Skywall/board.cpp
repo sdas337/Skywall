@@ -34,7 +34,8 @@ public:
 	int kingLocations[3];
 	uint64_t attackingSquares[3];
 
-	vector<BoardStateInformation> boardStates;
+	BoardStateInformation boardStates[512];
+	int boardStateIndex;
 
 	// no piece  = 0, king = 1, pawn = 2, knight = 3, bishop = 4, rook = 5, queen = 6, white = 8, black = 16
 	void setPiece(int row, int col, int piece) {
@@ -59,13 +60,13 @@ public:
 	}
 
 	bool fiftyMoveCheck() {
-		return boardStates.back().fiftyMoveCount >= 100;
+		return boardStates[boardStateIndex].fiftyMoveCount >= 100;
 	}
 
 	bool repeatedPositionCheck() {	// true for if the game a repeatedPosition
 		int count = 2;
-		uint64_t recentHash = boardStates.back().zobristHash;
-		for (int i = boardStates.size() - 2; i >= 0; i--) {
+		uint64_t recentHash = boardStates[boardStateIndex].zobristHash;
+		for (int i = boardStateIndex - 2; i >= 0; i--) {
 			if (boardStates[i].zobristHash == recentHash)
 				count--;
 			if (count <= 0)
@@ -86,7 +87,7 @@ public:
 	}
 
 	void makeRawMove(Move move) {
-		BoardStateInformation newInfo = boardStates.back();
+		BoardStateInformation newInfo = boardStates[boardStateIndex];
 
 		int startSquare = move.getStartSquare();
 		int targetSquare = move.getEndSquare();
@@ -217,7 +218,9 @@ public:
 
 		newInfo.zobristHash ^= zobColor;
 
-		boardStates.push_back(newInfo);
+		boardStateIndex++;
+		boardStates[boardStateIndex] = newInfo;
+		
 		currentPlayer = currentPlayer % 2 + 1;
 	}
 
@@ -227,8 +230,8 @@ public:
 		int pieceRemovalSquare = targetSquare;
 		int flags = move.getFlag();
 
-		BoardStateInformation formerStatus = boardStates.back();
-		boardStates.erase(boardStates.end()-1);
+		BoardStateInformation formerStatus = boardStates[boardStateIndex];
+		boardStateIndex--;
 
 		if (flags == 1) {
 			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? 8 : -8);
@@ -299,20 +302,20 @@ public:
 	}
 
 	void makeNullMove() {
-		BoardStateInformation newInfo = boardStates.back();
+		BoardStateInformation newInfo = boardStates[boardStateIndex];
 
 		newInfo.zobristHash ^= zobColor;
 		//newInfo.zobristHash ^= zobEnPassant[newInfo.enPassantSquare % 8];
 
-		boardStates.push_back(newInfo);
+		boardStateIndex++;
+		boardStates[boardStateIndex] = newInfo;
 
 		currentPlayer = currentPlayer % 2 + 1;
 		plyCount++;
 	}
 
 	void undoNullMove() {
-		boardStates.erase(boardStates.end() - 1);
-
+		boardStateIndex--;
 		currentPlayer = currentPlayer % 2 + 1;
 		plyCount--;
 	}
@@ -432,7 +435,7 @@ public:
 		int flag = 0;
 
 		if (rawBoard[startSquare] % 8 == 2) {	// Checking if pawn
-			if (endSquare == boardStates.back().enPassantSquare) {
+			if (endSquare == boardStates[boardStateIndex].enPassantSquare) {
 				flag = 1;
 			}
 			else if (currentMove.size() == 5) {
@@ -605,7 +608,8 @@ public:
 		tmp.zobristHash = 0ull;
 
 		//Manually calculate zobristHash
-		boardStates.push_back(tmp);
+		boardStates[0] = tmp;
+		boardStateIndex = 0;
 
 		calculateZobristHash();
 
@@ -632,14 +636,16 @@ public:
 		string startingBoardPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 		loadBoardFromFen(startingBoardPos);
 
+		memset(boardStates, 0, sizeof(boardStates));
+		boardStateIndex = 0;
+
 		//printf("Finished setting up board.\n");
 	}
 
-	vector<Move> generateLegalMovesV2(bool onlyCaptures) {	// Using faster check detection
-		vector<Move> allMoves(256);
-
+	int generateLegalMovesV2(bool onlyCaptures, Move validMoves[]) {	// Using faster check detection
+		
+		Move allMoves[256];
 		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
-		vector<Move> validMoves(256);
 		int origCurrentPlayer = currentPlayer;
 
 		int moveIndex = 0;
@@ -651,9 +657,9 @@ public:
 				continue;
 			}
 
-			makeMove(move);
+			makeRawMove(move);
 			bool moveStatus = determineLegalBoardState();
-			undoMove(move);
+			undoRawMove(move);
 
 			if (moveStatus) {
 				validMoves[moveIndex] = move;
@@ -661,8 +667,7 @@ public:
 			}
 		}
 
-		validMoves.resize(moveIndex);
-		return validMoves;
+		return moveIndex;
 
 	}
 
@@ -716,13 +721,13 @@ public:
 		}
 
 		for (int i = 0; i < 4; i++) {
-			if (boardStates.back().castlingRights[i]) {
+			if (boardStates[boardStateIndex].castlingRights[i]) {
 				rawHash ^= zobCastle[i];
 			}
 		}
 
-		if (boardStates.back().enPassantSquare != 64) {
-			rawHash ^= zobEnPassant[boardStates.back().enPassantSquare % 8];
+		if (boardStates[boardStateIndex].enPassantSquare != 64) {
+			rawHash ^= zobEnPassant[boardStates[boardStateIndex].enPassantSquare % 8];
 		}
 
 		return rawHash;
@@ -843,7 +848,7 @@ private:
 	}
 
 	void calculateZobristHash() {
-		boardStates.back().zobristHash = zobristHashCalc();
+		boardStates[boardStateIndex].zobristHash = zobristHashCalc();
 	}
 
 	void precomputeDistances() {
@@ -927,7 +932,7 @@ private:
 
 	}
 
-	int generateKingMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
+	int generateKingMovesV2(int square, Move moves[], int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
 
 		uint64_t kingMoveBitboard = validKingMoves[square] & ~occupiedBoard[wantedPlayer];
@@ -941,7 +946,7 @@ private:
 
 		int otherPlayer = wantedPlayer % 2 + 1;
 		
-		if (boardStates.back().castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
+		if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
 			// Occupancy check
 			uint64_t relevantRowMask = 0x6060606060606060 & (0xffull << (56 * wantedPlayer - 56));
 			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
@@ -960,7 +965,7 @@ private:
 				}
 			}
 		}
-		if (boardStates.back().castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
+		if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
 			// Occupancy check
 			uint64_t relevantRowMask = 0x0e0e0e0e0e0e0e0e & (0xffull << (56 * wantedPlayer - 56));
 			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
@@ -992,7 +997,7 @@ private:
 		return currentPawnMask & otherOccupiedBoard;
 	}
 
-	int generatePawnMovesV2(int square, vector<Move>& moves, int insertionIndex, int wantedPlayer) {
+	int generatePawnMovesV2(int square, Move moves[], int insertionIndex, int wantedPlayer) {
 		int movesGenerated = 0;
 		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 
@@ -1019,10 +1024,10 @@ private:
 			}
 		}
 
-		if (boardStates.back().enPassantSquare >= 0 && boardStates.back().enPassantSquare < 64) {	// En passant Move
-			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates.back().enPassantSquare);
+		if (boardStates[boardStateIndex].enPassantSquare >= 0 && boardStates[boardStateIndex].enPassantSquare < 64) {	// En passant Move
+			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates[boardStateIndex].enPassantSquare);
 			if (enPassant != 0ull) {
-				moves[insertionIndex] = Move(square, boardStates.back().enPassantSquare, 1);
+				moves[insertionIndex] = Move(square, boardStates[boardStateIndex].enPassantSquare, 1);
 				insertionIndex++;
 				movesGenerated++;
 			}
@@ -1057,7 +1062,7 @@ private:
 
 
 public:
-	int generatePseudoLegalMovesV3(vector<Move>& listOfMoves, int wantedPlayer) {
+	int generatePseudoLegalMovesV3(Move listOfMoves[], int wantedPlayer) {
 		int insertionIndex = 0;
 		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
 
