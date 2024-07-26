@@ -343,12 +343,11 @@ int main()
 	//testing();
 	//outputTunableJSON();
 
-	
 	uciHandling();
 
 	//bench(10);
 
-	//bench(15);
+	//bench(11);
 
 	//mainBoard.loadBoardFromFen("8/8/2k5/3p4/2pK2P1/8/8/8 w - - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";

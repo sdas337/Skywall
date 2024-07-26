@@ -187,12 +187,12 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 	}
 	alpha = max(alpha, bestScore);
 
-	//vector<Move> allMoves;
 	Move allMoves[256];
 	int moveCount = board.generateLegalMovesV2(true, allMoves);
 
-	vector<int> moveScores(moveCount);
-	for (size_t i = 0; i < moveScores.size(); i++) {
+	int moveScores[256];
+	//vector<int> moveScores(moveCount);
+	for (size_t i = 0; i < moveCount; i++) {
 		int score = 0;
 
 		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
@@ -372,7 +372,6 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		}
 	}
 
-	//vector<Move> allMoves;
 	Move allMoves[256];
 	int moveCount = board.generateLegalMovesV2(false, allMoves);
 
@@ -383,8 +382,10 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 	}
 
 	// Order moves portion
-	vector<int> moveScores(moveCount);
-	for (size_t i = 0; i < moveScores.size(); i++) {
+	
+	int moveScores[256];
+	//vector<int> moveScores(moveCount);
+	for (size_t i = 0; i < moveCount; i++) {
 		int score = 0;
 
 		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
