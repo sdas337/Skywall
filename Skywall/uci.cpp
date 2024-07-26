@@ -340,14 +340,14 @@ int main()
 	//evalTuningTest();
 	//seeTest();
 
-	//testing();
+	testing();
 	//outputTunableJSON();
 
-	uciHandling();
+	//uciHandling();
 
 	//bench(10);
 
-	//bench(11);
+	//bench(12);
 
 	//mainBoard.loadBoardFromFen("8/8/2k5/3p4/2pK2P1/8/8/8 w - - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";

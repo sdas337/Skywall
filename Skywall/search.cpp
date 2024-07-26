@@ -18,7 +18,7 @@ struct TTentry {
 
 	TTentry() {
 		zobristHash = 0ull;
-		m = Move(0, 0, 0);
+		m = Move();
 		depth = 0;
 		score = 0;
 		flag = 0;
@@ -207,7 +207,8 @@ int qsearch(Board& board, int depth, int plyFromRoot, int alpha, int beta) {
 		moveScores[i] = score;
 	}
 
-	Move bestMove = Move(0, 0, 0);
+	//Move bestMove = Move(0, 0, 0);
+	Move bestMove;
 	int currentScore, origAlpha = alpha;
 
 	for (uint8_t i = 0; i < moveCount; i++) {

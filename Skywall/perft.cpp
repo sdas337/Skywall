@@ -13,26 +13,17 @@ Board testBoard;
 
 int testDepth;
 
-int DEBUG = 0;
-
-uint64_t moveChecker(int depth, bool testingCaptures) {
+uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
 	uint64_t nodes = 0;
 
-	/*if (depth == 0) {
+	if (depth == 0) {
 		testBoard.nodes++;
 		return 1;
-	}*/
+	}
 
 	Move allMoves[256];
 
-	//vector<Move> allMoves = 
-
 	int moveCount = testBoard.generateLegalMovesV2(testingCaptures, allMoves);
-
-	if (depth == 1) {
-		testBoard.nodes += moveCount;
-		return moveCount;
-	}
 
 	for (uint8_t i = 0; i < moveCount; i++) {
 		Move move = allMoves[i];
@@ -41,13 +32,7 @@ uint64_t moveChecker(int depth, bool testingCaptures) {
 
 		testBoard.makeRawMove(move);
 
-		/*if (testBoard.boardStates.back().zobristHash != testBoard.zobristHashCalc()) {
-			cout << testBoard.boardStates.back().zobristHash << "\n";
-			cout << testBoard.zobristHashCalc() << "\n";
-			cout << "Error error, Zobrist hash break" << "\n";
-		}*/
-
-		uint64_t movesMade = moveChecker(depth - 1, testingCaptures);
+		uint64_t movesMade = moveChecker(depth - 1, testingCaptures, DEBUG);
 		nodes += movesMade;
 
 		testBoard.undoRawMove(move);
@@ -100,15 +85,15 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 1;
+	testDepth = 2;
 	testBoard.loadBoardFromFen(FENs[1]);
-	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R2K3R b kq - 1 1");
+	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R4RK1 b kq - 1 1");
 	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R2K3R w kq - 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/p1pppppp/8/1P6/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2");
 	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");
 
 	// breaks here
-	uint64_t result = moveChecker(testDepth, false);
+	uint64_t result = moveChecker(testDepth, false, 1);
 
 
 	printf("%llu legal moves\n", result);
@@ -141,7 +126,7 @@ void completePerftTest() {
 
 			testDepth = depth;
 
-			uint64_t result = moveChecker(testDepth, false);
+			uint64_t result = moveChecker(testDepth, false, 0);
 
 			if (moveCount == result) {
 				printf("Position %d at depth %d passed.\n", line, depth);
