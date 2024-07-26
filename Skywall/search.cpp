@@ -417,7 +417,7 @@ int negamax(Board& board, int depth, int plyFromRoot, int alpha, int beta, bool 
 		moveScores[i] = score;
 	}
 
-	Move bestMove = Move();
+	Move bestMove;
 	int currentScore, origAlpha = alpha;
 
 	bool futilePruning = depth <= fpDepth.value && (eval + fpScale.value * depth + fpMargin.value) <= alpha;

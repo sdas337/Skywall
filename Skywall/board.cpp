@@ -105,16 +105,21 @@ public:
 		int movingPiece = rawBoard[startSquare];
 		newInfo.capturedPieceType = rawBoard[pieceRemovalSquare];
 
+		if (capturedPiece) {
+			rawBoard[pieceRemovalSquare] = 0;
+			occupiedBoard[otherPlayer] ^= (1ull << pieceRemovalSquare);
+			pieceBoards[newInfo.capturedPieceType % 8] ^= (1ull << pieceRemovalSquare);
+			
+			newInfo.fiftyMoveCount = -1;
+			newInfo.zobristHash ^= zobPieces[otherPlayer][newInfo.capturedPieceType % 8][pieceRemovalSquare];
+		}
+
 		rawBoard[startSquare] = 0;
-		rawBoard[pieceRemovalSquare] = 0;
 		rawBoard[targetSquare] = movingPiece;
 
 		uint64_t moveBoard = (1ull << startSquare) | (1ull << targetSquare);
 		
 		occupiedBoard[currentPlayer] ^= moveBoard;
-		occupiedBoard[otherPlayer] &= ~(1ull << pieceRemovalSquare);
-
-		pieceBoards[newInfo.capturedPieceType % 8] &= ~(1ull << pieceRemovalSquare);
 		pieceBoards[movingPiece % 8] ^= moveBoard;
 
 		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][startSquare];
@@ -123,11 +128,8 @@ public:
 		//cout << zobristHashCalc() << "\n";
 
 		newInfo.fiftyMoveCount++;
-		if (capturedPiece || (movingPiece & 7) == 2) {
+		if ((movingPiece & 7) == 2) {
 			newInfo.fiftyMoveCount = 0;
-			if (capturedPiece) {
-				newInfo.zobristHash ^= zobPieces[otherPlayer][newInfo.capturedPieceType % 8][pieceRemovalSquare];
-			}
 		}
 
 		if (newInfo.enPassantSquare != 64) {
@@ -211,27 +213,30 @@ public:
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
-			if (newInfo.castlingRights[2 * currentPlayer - 2])
+			if (newInfo.castlingRights[2 * currentPlayer - 2]) {
 				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			if (newInfo.castlingRights[2 * currentPlayer - 1])
+				newInfo.castlingRights[2 * currentPlayer - 2] = false;
+			}
+			if (newInfo.castlingRights[2 * currentPlayer - 1]) {
 				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
-
-			newInfo.castlingRights[2 * currentPlayer - 2] = false;
-			newInfo.castlingRights[2 * currentPlayer - 1] = false;
+				newInfo.castlingRights[2 * currentPlayer - 1] = false;
+			}
 
 			kingLocations[currentPlayer] = targetSquare;
 		}
 
 		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
-				if(newInfo.castlingRights[2 * currentPlayer - 2])
+				if (newInfo.castlingRights[2 * currentPlayer - 2]) {
 					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-				newInfo.castlingRights[2 * currentPlayer - 2] = false;
+					newInfo.castlingRights[2 * currentPlayer - 2] = false;
+				}
 			}
-			else{
-				if(newInfo.castlingRights[2 * currentPlayer - 1])
+			else {
+				if (newInfo.castlingRights[2 * currentPlayer - 1]) {
 					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
-				newInfo.castlingRights[2 * currentPlayer - 1] = false;
+					newInfo.castlingRights[2 * currentPlayer - 1] = false;
+				}
 			}
 		}
 
@@ -313,7 +318,7 @@ public:
 			rawBoard[startSquare] = (otherPlayer * 8) | 2;
 
 			pieceBoards[2] |= (1ull << startSquare);	// Fixing incorrect move that occurred earlier
-			pieceBoards[flags + 1] &= ~(1ull << startSquare);
+			pieceBoards[flags + 1] ^= (1ull << startSquare);
 		}
 
 		// King location check
@@ -695,7 +700,6 @@ public:
 				cout << "ERROR, ERROR, ERROR. Not agreeing boards.\n";
 			}*/
 
-			
 
 			makeRawMove(move);
 			bool moveStatus = determineLegalBoardState();
@@ -1221,55 +1225,5 @@ public:
 			attackingSquares[wantedPlayer] |= attackBoard;
 		}
 
-	}
-
-	void generateAttacksV2(int wantedPlayer) {
-		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
-		uint64_t knightBoard = occupiedBoard[wantedPlayer] & pieceBoards[3];
-		uint64_t bishopBoard = occupiedBoard[wantedPlayer] & pieceBoards[4];
-		uint64_t rookBoard = occupiedBoard[wantedPlayer] & pieceBoards[5];
-		uint64_t queenBoard = occupiedBoard[wantedPlayer] & pieceBoards[6];
-
-		attackingSquares[wantedPlayer] = 0ull;
-
-		while (pawnBoard != 0) {
-			int square = popLSB(pawnBoard);
-
-			attackingSquares[wantedPlayer] |= validPawnCaptureMasks[square][wantedPlayer];
-		}
-
-		while (knightBoard != 0) {
-			int square = popLSB(knightBoard);
-			uint64_t knightMoves = generateKnightMoves(square, wantedPlayer);
-
-			attackingSquares[wantedPlayer] |= knightMoves;
-		}
-
-		while (bishopBoard != 0) {
-			int square = popLSB(bishopBoard);
-			uint64_t bishopMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
-			bishopMoves &= ~occupiedBoard[wantedPlayer];
-
-			attackingSquares[wantedPlayer] |= bishopMoves;
-		}
-
-		while (rookBoard != 0) {
-			int square = popLSB(rookBoard);
-			uint64_t rookMoves = generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
-			rookMoves &= ~occupiedBoard[wantedPlayer];
-
-			attackingSquares[wantedPlayer] |= rookMoves;
-		}
-
-		while (queenBoard != 0) {
-			int square = popLSB(queenBoard);
-			uint64_t queenMoves = generateBishopMoves(square, occupiedBoard[1] | occupiedBoard[2]);
-			queenMoves |= generateRookMoves(square, occupiedBoard[1] | occupiedBoard[2]);
-
-			queenMoves &= ~occupiedBoard[wantedPlayer];
-
-
-			attackingSquares[wantedPlayer] |= queenMoves;
-		}
 	}
 };

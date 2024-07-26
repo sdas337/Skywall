@@ -33,7 +33,6 @@ void testing() {
 void seeTest() {
 	std::ifstream inputFile("../../../testFiles/SEE.txt");
 	
-
 	//                   P    N    B    R    Q    K  NONE
 	//SEE_PIECE_VALUES = { 100, 300, 300, 500, 900, 0, 0 };
 
@@ -340,10 +339,10 @@ int main()
 	//evalTuningTest();
 	//seeTest();
 
-	testing();
+	//testing();
 	//outputTunableJSON();
 
-	//uciHandling();
+	uciHandling();
 
 	//bench(10);
 
