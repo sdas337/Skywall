@@ -11,8 +11,6 @@
 
 using namespace std;
 
-Board mainBoard;
-
 void testing() {
 	importPerftTest();
 	printf("Beginning mass perft test.\n");
@@ -30,7 +28,7 @@ void testing() {
 
 }
 
-void seeTest() {
+void seeTest(Search& currentSearch) {
 	std::ifstream inputFile("../../../testFiles/SEE.txt");
 	
 	//                   P    N    B    R    Q    K  NONE
@@ -50,14 +48,13 @@ void seeTest() {
 		int gain = stoi(tokens[2]);
 		bool expected = gain >= 0;
 
-		Board tmpBoard = Board();
-		tmpBoard.loadBoardFromFen(fen);
+		currentSearch.resetSearch();
 
 		Move currentMove;
 
-		tmpBoard.setMoveFromString(currentMove, uciMove);
+		currentSearch.board.setMoveFromString(currentMove, uciMove);
 
-		bool result = see(tmpBoard, currentMove, 0);
+		bool result = currentSearch.see(currentMove, 0);
 
 		if (result == expected)
 			passed++;
@@ -73,7 +70,7 @@ void seeTest() {
 	std::cout << "Failed: " << failed << std::endl;
 }
 
-void evalTuningTest() {
+void evalTuningTest(Search &currentSearch) {
 	ifstream file("../../../testFiles/uciTestFens.epd");
 
 	if (file.is_open()) {	// Reading in all the tests
@@ -90,11 +87,10 @@ void evalTuningTest() {
 			//FENs[lineCount] = fenString;
 			//printf("%s\n", fenString.c_str());
 
-			mainBoard.loadBoardFromFen(fenString);
+			currentSearch.board.loadBoardFromFen(fenString);
 			cout << fenString << "; [1.0]\n";
 
-			cout << " Eval: " << evaluate2(mainBoard) << "\n";
-
+			cout << " Eval: " << evaluate2(currentSearch.board) << "\n";
 
 			lineCount++;
 		}
@@ -105,7 +101,7 @@ void evalTuningTest() {
 	
 }
 
-void bench(int depth) {
+void bench(Search &currentSearch, int depth) {
 	importPerftTest();
 
 	uint64_t totalNodes = 0ull;
@@ -113,18 +109,17 @@ void bench(int depth) {
 	auto start = chrono::high_resolution_clock::now();
 
 	for (int line = 0; line < 128; line++) {
-		for (uint32_t i = 0; i < actual_TT_Size; i++)
-			transpositionTable[i] = TTentry();
+		currentSearch.resetSearch();;
 
 		printf("Position %d\n", line);
-		testBoard.loadBoardFromFen(FENs[line]);
+		currentSearch.board.loadBoardFromFen(FENs[line]);
 
-		searchBoard(testBoard, 1000 * 60 * 60, 0, depth);
+		currentSearch.searchBoard(1000 * 60 * 60, 0, depth);
 
 		printf("\n");
 
-		totalNodes += testBoard.nodes;
-		testBoard.nodes = 0ull;
+		totalNodes += currentSearch.board.nodes;
+		currentSearch.board.nodes = 0ull;
 	}
 
 	auto stop = chrono::high_resolution_clock::now();
@@ -139,17 +134,17 @@ void bench(int depth) {
 
 }
 
-void positionHandling(vector<string> &instruction) {
+void positionHandling(Search& currentSearch, vector<string> &instruction) {
 	auto movesIndex = find(instruction.begin(), instruction.end(), "moves");
 
 	if (instruction[1] == "startpos") {
-		mainBoard.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+		currentSearch.board.loadBoardFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	}
 	else {
 		string fenString;
 		for (size_t i = 1; i < instruction.size(); i++)
 			fenString += instruction[i] + " ";
-		mainBoard.loadBoardFromFen(fenString);
+		currentSearch.board.loadBoardFromFen(fenString);
 	}
 
 	if (movesIndex != instruction.end()) {	// moves within the command
@@ -159,8 +154,8 @@ void positionHandling(vector<string> &instruction) {
 			int startSquare = squareNameToValue(currentMove.substr(0, 2));
 			int endSquare = squareNameToValue(currentMove.substr(2, 4));
 
-			if (mainBoard.rawBoard[startSquare] % 8 == 2) {	// Pawn Move
-				if (endSquare == mainBoard.boardStates[mainBoard.boardStateIndex].enPassantSquare) {
+			if (currentSearch.board.rawBoard[startSquare] % 8 == 2) {	// Pawn Move
+				if (endSquare == currentSearch.board.boardStates[currentSearch.board.boardStateIndex].enPassantSquare) {
 					flag = 1;
 				}
 				else if (currentMove.size() == 5) {
@@ -178,7 +173,7 @@ void positionHandling(vector<string> &instruction) {
 				}
 			}
 
-			if (mainBoard.rawBoard[startSquare] % 8 == 1) {	// king move
+			if (currentSearch.board.rawBoard[startSquare] % 8 == 1) {	// king move
 				if (abs(endSquare % 8 - startSquare % 8) > 1) {	// Castling
 					flag = 6;
 				}
@@ -186,7 +181,7 @@ void positionHandling(vector<string> &instruction) {
 
 			Move toMake(startSquare, endSquare, flag);
 
-			mainBoard.makeMove(toMake);
+			currentSearch.board.makeMove(toMake);
 		}
 	}
 	
@@ -194,15 +189,15 @@ void positionHandling(vector<string> &instruction) {
 	return;
 }
 
-void optionHandling(string instruction) {
+void optionHandling(Search& currentSearch, string instruction) {
 	vector<string> splitString = split(instruction, ' ');
 
 	if (splitString[2] == "Hash") {
 		int newSizeMB = stoi(splitString[4]);
 		int newSizeBytes = newSizeMB * 1024 * 1024;
 
-		actual_TT_Size = newSizeBytes / sizeof(TTentry);
-		transpositionTable.resize(actual_TT_Size);
+		currentSearch.actual_TT_Size = newSizeBytes / sizeof(TTentry);
+		currentSearch.transpositionTable.resize(currentSearch.actual_TT_Size);
 
 		// One day will do
 	}
@@ -220,7 +215,7 @@ void optionHandling(string instruction) {
 	
 }
 
-void instructionHandling(string instruction) {
+void instructionHandling(Search &currentSearch, string instruction) {
 	vector<string> splitString = split(instruction, ' ');
 
 	if (instruction == "uci") {
@@ -236,12 +231,10 @@ void instructionHandling(string instruction) {
 		cout << "readyok\n";
 	}
 	else if (splitString[0] == "ucinewgame") {
-		mainBoard = Board();
-		for(uint32_t i = 0; i < actual_TT_Size; i++)
-			transpositionTable[i] = TTentry();
+		currentSearch.resetSearch();
 	}
 	else if (splitString[0] == "position") {
-		positionHandling(splitString);
+		positionHandling(currentSearch, splitString);
 	}
 	else if (splitString[0] == "go") {
 		int wtime = 0, btime = 0;
@@ -254,10 +247,10 @@ void instructionHandling(string instruction) {
 			if (splitString[i] == "btime") {
 				btime = stoi(splitString[i + 1]);
 			}
-			if (splitString[i] == "winc" && mainBoard.currentPlayer == 1) {
+			if (splitString[i] == "winc" && currentSearch.board.currentPlayer == 1) {
 				inc = stoi(splitString[i + 1]);
 			}
-			if (splitString[i] == "binc" && mainBoard.currentPlayer == 2) {
+			if (splitString[i] == "binc" && currentSearch.board.currentPlayer == 2) {
 				inc = stoi(splitString[i + 1]);
 			}
 			if (splitString[i] == "depth") {
@@ -270,14 +263,14 @@ void instructionHandling(string instruction) {
 
 		int time = 0;
 
-		if (mainBoard.currentPlayer == 1) {
+		if (currentSearch.board.currentPlayer == 1) {
 			time = wtime;
 		}
 		else {
 			time = btime;
 		}
 
-		Move result = searchBoard(mainBoard, time, inc, 64);
+		Move result = currentSearch.searchBoard(time, inc, 64);
 
 		/*if (result.getRawValue() == 0) {
 			ofstream file("../../../testFiles/debugLogs.txt", ofstream::out | ofstream::app);
@@ -306,11 +299,11 @@ void instructionHandling(string instruction) {
 		cout << "\n";
 	}
 	else if (splitString[0] == "setoption") {
-		optionHandling(instruction);
+		optionHandling(currentSearch, instruction);
 	}
 }
 
-void uciHandling() {
+void uciHandling(Search &currentSearch) {
 
 	string instruction;
 	while (true) {
@@ -324,7 +317,7 @@ void uciHandling() {
 			break;
 		}
 
-		instructionHandling(instruction);
+		instructionHandling(currentSearch, instruction);
 
 	}
 }
@@ -332,9 +325,9 @@ void uciHandling() {
 
 int main()
 {
-	setupLMR();
+	Search currentSearch;
 
-	transpositionTable.resize(actual_TT_Size);
+	setupLMR();
 
 	//evalTuningTest();
 	//seeTest();
@@ -342,11 +335,11 @@ int main()
 	//testing();
 	//outputTunableJSON();
 
-	uciHandling();
+	uciHandling(currentSearch);
 
 	//bench(10);
 
-	//bench(12);
+	//bench(currentSearch, 12);
 
 	//mainBoard.loadBoardFromFen("8/8/2k5/3p4/2pK2P1/8/8/8 w - - 0 1");
 	//cout << "Evaluation is " << evaluate(mainBoard) << "\n";
