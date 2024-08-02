@@ -35,8 +35,6 @@ class Search {
 public:
 	uint32_t actual_TT_Size = 1048576;
 
-	
-
 	chrono::high_resolution_clock::time_point start;
 
 	vector<TTentry> transpositionTable;
@@ -61,7 +59,7 @@ public:
 
 	StackEntry searchStack[1024];
 
-	int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
+	//int testSeeValues[7] = { 0, 0, 100, 300, 300, 500, 900 };
 
 	// Sourcing SEE based on clarity and stormphrax
 	int estimatedMoveValue(Move m, int flag) {
@@ -198,7 +196,7 @@ public:
 
 		int moveScores[256];
 		//vector<int> moveScores(moveCount);
-		for (size_t i = 0; i < moveCount; i++) {
+		for (int i = 0; i < moveCount; i++) {
 			int score = 0;
 
 			if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
@@ -392,7 +390,7 @@ public:
 
 		int moveScores[256];
 		//vector<int> moveScores(moveCount);
-		for (size_t i = 0; i < moveCount; i++) {
+		for (int i = 0; i < moveCount; i++) {
 			int score = 0;
 
 			if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
@@ -498,6 +496,10 @@ public:
 				reductions = lmrReductions[depth][i];
 
 				//reductions += !improving;
+
+				reductions -= historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] / 8192;
+
+				//reductions = clamp(reductions, 0, depth - 2);
 			}
 
 			if (i == 0) {
