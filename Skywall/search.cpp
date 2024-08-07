@@ -495,7 +495,7 @@ public:
 			if (!inCheck && !tmpCheckStatus && !importantMoves && i >= lmrMoveCount.value && depth > lmrDepth.value) {
 				reductions = lmrReductions[depth][i];
 
-				//reductions += !improving;
+				reductions -= pvNode;
 
 				reductions -= historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] / 8192;
 
