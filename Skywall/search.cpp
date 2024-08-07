@@ -474,10 +474,10 @@ public:
 				quietNodes++;
 
 				// History Pruning
-				/*if (plyFromRoot > 0 && depth < 6 && moveScores[i] < -1500 * depth - 1000) {
+				if (plyFromRoot > 0 && depth < 6 && moveScores[i] < -2300 * depth - 1000) {
 					break;
-				}*/
-			}
+				}
+			} 
 
 			board.makeMove(move);
 
