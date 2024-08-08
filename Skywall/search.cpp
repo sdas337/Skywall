@@ -492,7 +492,7 @@ public:
 			int newDepth = depth - 1 + extensions;
 
 			// Late Move Reduction
-			if (!inCheck && !tmpCheckStatus && !importantMoves && i >= lmrMoveCount.value && depth > lmrDepth.value) {
+			if (!inCheck && !tmpCheckStatus && !importantMoves && i >= 1 && depth > lmrDepth.value) {
 				reductions = lmrReductions[depth][i];
 
 				reductions -= pvNode;
