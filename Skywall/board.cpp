@@ -412,34 +412,26 @@ public:
 	// Checking if we're in check 
 	template <int player>
 	bool sideInCheck() {
-		int otherPlayer = player % 2 + 1;
+		uint64_t attackers = 0ull;
 
 		// perform several partial move gens beginning from other player's king location
 		uint64_t knightMoves = generateKnightMoves<player>(kingLocations[player]);
-		if (knightMoves & occupiedBoard[otherPlayer] & pieceBoards[3]) {
-			return true;
-		}
+		attackers |= knightMoves & pieceBoards[3];
 
 		uint64_t bishopMoves = generateBishopMoves(kingLocations[player], occupiedBoard[1] | occupiedBoard[2]);
 		bishopMoves &= ~occupiedBoard[player];
-		if (bishopMoves & occupiedBoard[otherPlayer] & (pieceBoards[4] | pieceBoards[6])) {
-			return true;
-		}
 		
+		attackers |= bishopMoves & (pieceBoards[4] | pieceBoards[6]);
+
 		uint64_t rookMoves = generateRookMoves(kingLocations[player], occupiedBoard[1] | occupiedBoard[2]);
 		rookMoves &= ~occupiedBoard[player];
 
-		if (rookMoves & occupiedBoard[otherPlayer] & (pieceBoards[5] | pieceBoards[6])) {
-			return true;
-		}
+		attackers |= rookMoves & (pieceBoards[5] | pieceBoards[6]);
+		attackers |= generatePawnAttacks<player>(kingLocations[player]) & pieceBoards[2];
 
-		
-		// Pawn Attacks
-		if (generatePawnAttacks<player>(kingLocations[player]) & pieceBoards[2]) {
-			return true;
-		}
+		attackers &= occupiedBoard[player % 2 + 1];
 
-		return false;
+		return popcount(attackers) != 0;
 	}
 
 	char prettyPiecePrint(int row, int col, int pieceAtLoc) {

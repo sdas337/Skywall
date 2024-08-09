@@ -179,7 +179,7 @@ void positionHandling(Search& currentSearch, vector<string> &instruction) {
 				}
 			}
 
-			Move toMake(startSquare, endSquare, flag);
+			Move toMake = Move(startSquare, endSquare, flag);
 
 			currentSearch.board.makeMove(toMake);
 		}
