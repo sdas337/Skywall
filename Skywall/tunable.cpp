@@ -18,6 +18,12 @@ TuneValue lmpQuad("lmpQuad", 4, 0, 100, 10);
 TuneValue lmpScale("lmpScale", 3, 1, 15, 2);
 TuneValue lmpBase("lmpBase", 2, 0, 10, 2);
 
+TuneValue hstPruneDepth("hstPruneDepth", 6, 0, 12, 1);
+TuneValue hstPruneScale("hstPruneScale", 2300, 0, 4000, 100);
+TuneValue hstPruneBase("hstPruneBase", 1000, -2000, 0, 100);
+
+TuneValue hstReduction("hstReduction", 8192, 0, 16683, 500);
+
 TuneValue lmrBase("lmrBase", 88, 0, 200, 10);
 TuneValue lmrDivisor("lmrDivisor", 246, 100, 350, 10);
 TuneValue lmrDepth("lmrDepth", 1, 0, 12, 1);
@@ -96,6 +102,10 @@ vector<TuneValue *> allTunables = {
 	&lmpScale,
 	&lmpQuad,
 	&lmpBase,
+	&hstPruneDepth,
+	&hstPruneScale,
+	&hstPruneBase,
+	&hstReduction,
 	&lmrBase,
 	&lmrDivisor,
 	&lmrDepth,

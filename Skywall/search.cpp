@@ -474,7 +474,7 @@ public:
 				quietNodes++;
 
 				// History Pruning
-				if (plyFromRoot > 0 && depth < 6 && moveScores[i] < -2300 * depth - 1000) {
+				if (plyFromRoot > 0 && depth < hstPruneDepth.value && moveScores[i] < -hstPruneScale.value * depth - hstPruneBase.value) {
 					break;
 				}
 			} 
@@ -497,7 +497,7 @@ public:
 
 				reductions -= pvNode;
 
-				reductions -= historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] / 8192;
+				reductions -= historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] / hstReduction.value;
 
 				//reductions = clamp(reductions, 0, depth - 2);
 			}

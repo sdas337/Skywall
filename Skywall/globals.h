@@ -118,6 +118,11 @@ extern TuneValue lmpQuad;
 extern TuneValue lmpScale;
 extern TuneValue lmpBase;
 
+extern TuneValue hstPruneDepth;
+extern TuneValue hstPruneScale;
+extern TuneValue hstPruneBase;
+extern TuneValue hstReduction;
+
 extern TuneValue lmrBase;
 extern TuneValue lmrDivisor;
 extern TuneValue lmrDepth;
