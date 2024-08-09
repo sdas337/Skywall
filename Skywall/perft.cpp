@@ -23,7 +23,12 @@ uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
 
 	Move allMoves[256];
 
-	int moveCount = testBoard.generateLegalMovesV2(testingCaptures, allMoves);
+	int moveCount;
+	
+	if(testBoard.currentPlayer == 1)
+		moveCount = testBoard.generateLegalMovesV2<1>(testingCaptures, allMoves);
+	else
+		moveCount = testBoard.generateLegalMovesV2<2>(testingCaptures, allMoves);
 
 	if (depth == 1) {
 		testBoard.nodes += moveCount;
@@ -35,7 +40,10 @@ uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
 
 		//cout << testBoard.zobristHashCalc() << "\n";
 
-		testBoard.makeRawMove(move);
+		if (testBoard.currentPlayer == 1)
+			testBoard.makeRawMove<1>(move);
+		else
+			testBoard.makeRawMove<2>(move);
 
 		uint64_t movesMade = moveChecker(depth - 1, testingCaptures, DEBUG);
 		nodes += movesMade;
@@ -176,7 +184,7 @@ void movegenBenchmark() {
 	double moveGenSpeed = (268435456.0) / (duration.count());
 	printf("Attack Gen speed: %f gen per microsecond\n\n\n", moveGenSpeed);*/
 
-	start = chrono::high_resolution_clock::now();
+	/*start = chrono::high_resolution_clock::now();
 	double moveCount = 0;
 	for (int line = 0; line < 128; line++) {
 		testBoard.loadBoardFromFen(FENs[line]);
@@ -198,5 +206,5 @@ void movegenBenchmark() {
 
 	cout << "MakeMove Time: " << duration.count() << " microseconds\n";
 	double makeMoveTime = moveCount / (duration.count());
-	printf("MakeMove speed: %f mps", makeMoveTime);
+	printf("MakeMove speed: %f mps", makeMoveTime);*/
 }

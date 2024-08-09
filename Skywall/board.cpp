@@ -76,27 +76,39 @@ public:
 		return false;
 	}
 
+	template <int playerToMove>
 	bool isCapture(Move move) {
 		int pieceRemovalSquare = move.getEndSquare();
 		int flags = move.getFlag();
 		if (flags == 1 || flags == 7) {
-			pieceRemovalSquare += (currentPlayer == 1 ? -8 : 8);
+			if constexpr (playerToMove == 1) {
+				pieceRemovalSquare -= 8;
+			}
+			else {
+				pieceRemovalSquare += 8;
+			}
 		}
 
 		return rawBoard[pieceRemovalSquare] != 0;
 	}
 
+	template <int playerToMove>
 	void makeRawMove(Move move) {
 		BoardStateInformation newInfo = boardStates[boardStateIndex];
 
-		int otherPlayer = currentPlayer % 2 + 1;
+		constexpr int otherPlayer = playerToMove % 2 + 1;
 
 		int startSquare = move.getStartSquare();
 		int targetSquare = move.getEndSquare();
 		int pieceRemovalSquare = targetSquare;
 		int flags = move.getFlag();
 		if (flags == 1 || flags == 7) {
-			pieceRemovalSquare = targetSquare + (currentPlayer == 1 ? -8 : 8);
+			if constexpr (playerToMove == 1) {
+				pieceRemovalSquare -= 8;
+			}
+			else {
+				pieceRemovalSquare += 8;
+			}
 		}
 
 		bool capturedPiece = rawBoard[pieceRemovalSquare] != 0;
@@ -119,11 +131,11 @@ public:
 
 		uint64_t moveBoard = (1ull << startSquare) | (1ull << targetSquare);
 		
-		occupiedBoard[currentPlayer] ^= moveBoard;
+		occupiedBoard[playerToMove] ^= moveBoard;
 		pieceBoards[movingPiece % 8] ^= moveBoard;
 
-		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][startSquare];
-		newInfo.zobristHash ^= zobPieces[currentPlayer][movingPiece % 8][targetSquare];
+		newInfo.zobristHash ^= zobPieces[playerToMove][movingPiece % 8][startSquare];
+		newInfo.zobristHash ^= zobPieces[playerToMove][movingPiece % 8][targetSquare];
 
 		//cout << zobristHashCalc() << "\n";
 
@@ -145,97 +157,134 @@ public:
 		}
 		// Handle Castling
 		else if (flags == 6) {
-			if (currentPlayer == 1) {
+			if constexpr(playerToMove == 1) {
 				if (targetSquare % 8 > 3) {	// White Kingside Castle
 					rawBoard[5] = rawBoard[7];
 					rawBoard[7] = 0;
 
-					occupiedBoard[currentPlayer] ^= 0xa0;
+					occupiedBoard[1] ^= 0xa0;
 					pieceBoards[5] ^= 0xa0;
 
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][7];
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][5];
+					newInfo.zobristHash ^= zobPieces[1][5][7];
+					newInfo.zobristHash ^= zobPieces[1][5][5];
 				}
 				else {	// White Queenside Castle
 					rawBoard[3] = rawBoard[0];
 					rawBoard[0] = 0;
 
-					occupiedBoard[currentPlayer] ^= 0x9;
+					occupiedBoard[1] ^= 0x9;
 					pieceBoards[5] ^= 0x9;
 
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][3];
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][0];
+					newInfo.zobristHash ^= zobPieces[1][5][3];
+					newInfo.zobristHash ^= zobPieces[1][5][0];
 				}
+
+				// Remove castling rights for that side
+				if (newInfo.castlingRights[0])
+					newInfo.zobristHash ^= zobCastle[0];
+				if (newInfo.castlingRights[1])
+					newInfo.zobristHash ^= zobCastle[1];
+
+				newInfo.castlingRights[0] = false;
+				newInfo.castlingRights[1] = false;
 			}
 			else {
 				if (targetSquare % 8 > 3) {	// Black Kingside Castle
 					rawBoard[61] = rawBoard[63];
 					rawBoard[63] = 0;
 
-					occupiedBoard[currentPlayer] ^= 0xa000000000000000ULL;
+					occupiedBoard[2] ^= 0xa000000000000000ULL;
 					pieceBoards[5] ^= 0xa000000000000000ULL;
 
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][63];
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][61];
+					newInfo.zobristHash ^= zobPieces[2][5][63];
+					newInfo.zobristHash ^= zobPieces[2][5][61];
 				}
 				else {	// Black Queenside Castle
 					rawBoard[59] = rawBoard[56];
 					rawBoard[56] = 0;
 
-					occupiedBoard[currentPlayer] ^= 0x900000000000000ULL;
+					occupiedBoard[2] ^= 0x900000000000000ULL;
 					pieceBoards[5] ^= 0x900000000000000ULL;
 
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][59];
-					newInfo.zobristHash ^= zobPieces[currentPlayer][5][56];
+					newInfo.zobristHash ^= zobPieces[2][5][59];
+					newInfo.zobristHash ^= zobPieces[2][5][56];
 				}
+
+				// Remove castling rights for that side
+				if (newInfo.castlingRights[2])
+					newInfo.zobristHash ^= zobCastle[2];
+				if (newInfo.castlingRights[3])
+					newInfo.zobristHash ^= zobCastle[3];
+
+				newInfo.castlingRights[2] = false;
+				newInfo.castlingRights[3] = false;
 			}
-
-			// Remove castling rights for that side
-			if(newInfo.castlingRights[2 * currentPlayer - 2])
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-			if(newInfo.castlingRights[2 * currentPlayer - 1])
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
-
-			newInfo.castlingRights[2 * currentPlayer - 2] = false;
-			newInfo.castlingRights[2 * currentPlayer - 1] = false;
 		}
 
 		// Handle promotion
 		else if (flags > 1 && flags < 6) {
-			rawBoard[targetSquare] = (currentPlayer * 8) | (flags + 1);
+			rawBoard[targetSquare] = (playerToMove * 8) | (flags + 1);
 
 			pieceBoards[2] ^= (1ull << targetSquare);
 			pieceBoards[flags + 1] ^= (1ull << targetSquare);
 
-			newInfo.zobristHash ^= zobPieces[currentPlayer][2][targetSquare];
-			newInfo.zobristHash ^= zobPieces[currentPlayer][flags + 1][targetSquare];
+			newInfo.zobristHash ^= zobPieces[playerToMove][2][targetSquare];
+			newInfo.zobristHash ^= zobPieces[playerToMove][flags + 1][targetSquare];
 		}
 
 		// Remove relevant castling rights
 		if ((rawBoard[targetSquare] & 7) == 1) {	// King check
-			if (newInfo.castlingRights[2 * currentPlayer - 2]) {
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-				newInfo.castlingRights[2 * currentPlayer - 2] = false;
+			if constexpr (playerToMove == 1) {
+				if (newInfo.castlingRights[0]) {
+					newInfo.zobristHash ^= zobCastle[0];
+					newInfo.castlingRights[0] = false;
+				}
+				if (newInfo.castlingRights[1]) {
+					newInfo.zobristHash ^= zobCastle[1];
+					newInfo.castlingRights[1] = false;
+				}
 			}
-			if (newInfo.castlingRights[2 * currentPlayer - 1]) {
-				newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
-				newInfo.castlingRights[2 * currentPlayer - 1] = false;
+			else {
+				if (newInfo.castlingRights[2]) {
+					newInfo.zobristHash ^= zobCastle[2];
+					newInfo.castlingRights[2] = false;
+				}
+				if (newInfo.castlingRights[3]) {
+					newInfo.zobristHash ^= zobCastle[3];
+					newInfo.castlingRights[3] = false;
+				}
 			}
 
-			kingLocations[currentPlayer] = targetSquare;
+			kingLocations[playerToMove] = targetSquare;
 		}
 
 		if ((rawBoard[targetSquare] & 7) == 5) {	// Rook Check
 			if (startSquare % 8 > 3) { // Queenside vs Kingside
-				if (newInfo.castlingRights[2 * currentPlayer - 2]) {
-					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 2];
-					newInfo.castlingRights[2 * currentPlayer - 2] = false;
+				if constexpr (playerToMove == 1) {
+					if (newInfo.castlingRights[0]) {
+						newInfo.zobristHash ^= zobCastle[0];
+						newInfo.castlingRights[0] = false;
+					}
+				}
+				else {
+					if (newInfo.castlingRights[2]) {
+						newInfo.zobristHash ^= zobCastle[2];
+						newInfo.castlingRights[2] = false;
+					}
 				}
 			}
 			else {
-				if (newInfo.castlingRights[2 * currentPlayer - 1]) {
-					newInfo.zobristHash ^= zobCastle[2 * currentPlayer - 1];
-					newInfo.castlingRights[2 * currentPlayer - 1] = false;
+				if constexpr (playerToMove == 1) {
+					if (newInfo.castlingRights[1]) {
+						newInfo.zobristHash ^= zobCastle[1];
+						newInfo.castlingRights[1] = false;
+					}
+				}
+				else {
+					if (newInfo.castlingRights[3]) {
+						newInfo.zobristHash ^= zobCastle[3];
+						newInfo.castlingRights[3] = false;
+					}
 				}
 			}
 		}
@@ -331,7 +380,10 @@ public:
 	}
 
 	void makeMove(Move move) {
-		makeRawMove(move);
+		if (currentPlayer == 1)
+			makeRawMove<1>(move);
+		else
+			makeRawMove<2>(move);
 	}
 
 	void undoMove(Move move) {
@@ -680,17 +732,14 @@ public:
 		//printf("Finished setting up board.\n");
 	}
 
+	template <int focusPlayer>
 	int generateLegalMovesV2(bool onlyCaptures, Move validMoves[]) {	// Using faster check detection
 		
 		Move allMoves[256];
 		int moveCount;
 
-		if(currentPlayer == 1)
-			moveCount = generatePseudoLegalMovesV3<1>(allMoves);
-		else
-			moveCount = generatePseudoLegalMovesV3<2>(allMoves);
+		moveCount = generatePseudoLegalMovesV3<focusPlayer>(allMoves);
 
-		int origCurrentPlayer = currentPlayer;
 		int moveIndex = 0;
 
 		uint64_t initialBoards[2] = { occupiedBoard[1], occupiedBoard[2] };
@@ -698,7 +747,7 @@ public:
 		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
 
-			if (onlyCaptures && !isCapture(move)) {
+			if (onlyCaptures && !isCapture<focusPlayer>(move)) {
 				continue;
 			}
 
@@ -707,12 +756,9 @@ public:
 			}*/
 
 
-			makeRawMove(move);
+			makeRawMove<focusPlayer>(move);
 			bool moveStatus;
-			if(origCurrentPlayer == 1)
-				moveStatus = determineLegalBoardState<1>();
-			else
-				moveStatus = determineLegalBoardState<2>();
+			moveStatus = determineLegalBoardState<focusPlayer>();
 			undoRawMove(move);
 
 			if (moveStatus) {

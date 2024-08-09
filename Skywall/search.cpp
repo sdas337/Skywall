@@ -164,6 +164,7 @@ public:
 		return board.currentPlayer != color;
 	}
 
+	/*
 	int qsearch(int depth, int plyFromRoot, int alpha, int beta) {
 		uint64_t currentHash = board.boardStates[board.boardStateIndex].zobristHash;
 		TTentry currentEntry = transpositionTable[currentHash % actual_TT_Size];
@@ -599,6 +600,7 @@ public:
 
 		return bestScore;
 	}
+	*/
 
 	Move searchBoard(int time, int inc, int maxDepth) {
 		/*for (int i = 0; i < 2; i++) {
@@ -635,7 +637,7 @@ public:
 		start = chrono::high_resolution_clock::now();
 
 		for (int chosenDepth = 1, alpha = -999999, beta = 999999; chosenDepth < maxDepth;) {
-			int score = negamax(chosenDepth, 0, alpha, beta, true, Move());
+			int score = 0;// negamax(chosenDepth, 0, alpha, beta, true, Move());
 
 			auto end = chrono::high_resolution_clock::now();
 			auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
