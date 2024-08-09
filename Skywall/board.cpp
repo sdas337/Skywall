@@ -870,35 +870,19 @@ public:
 	}
 
 	uint64_t generateRookMoves(int square, uint64_t blockerBitboard) {
-		uint64_t slidingMoveBitboard = 0ull;
-
 		uint64_t relevantBlockers = blockerBitboard | refinedRookMagics[square].negMask;
 		uint64_t hash = relevantBlockers * refinedRookMagics[square].blackMagic;
 		uint64_t tableIndex = (hash >> rookShift) + refinedRookMagics[square].tableOffset;
 
-		if (lookup_table[tableIndex] == 0) {
-			lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
-			printf("ERROR, IMPOSSIBLE. Rook MAGIC BOARD GEN FINDING A NEW POSITION\n");
-		}
-		slidingMoveBitboard = lookup_table[tableIndex];
-
-		return slidingMoveBitboard;
+		return lookup_table[tableIndex];
 	}
 
 	uint64_t generateBishopMoves(int square, uint64_t blockerBitboard) {
-		uint64_t slidingMoveBitboard = 0ull;
-
 		uint64_t relevantBlockers = blockerBitboard | refinedBishopMagics[square].negMask;
 		uint64_t hash = relevantBlockers * refinedBishopMagics[square].blackMagic;
 		uint64_t tableIndex = (hash >> bishopShift) + refinedBishopMagics[square].tableOffset;
 
-		if (lookup_table[tableIndex] == 0) {
-			//lookup_table[tableIndex] = generateSlidingMoveBitboard(square, 5, blockerBitboard);
-			printf("ERROR, IMPOSSIBLE. BISHOP BOARD GEN FINDING A NEW POSITION\n");
-		}
-		slidingMoveBitboard = lookup_table[tableIndex];
-
-		return slidingMoveBitboard;
+		return lookup_table[tableIndex];
 	}
 
 
@@ -1115,47 +1099,6 @@ private:
 			}
 		}
 
-		/*if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
-			// Occupancy check
-			uint64_t relevantRowMask = 0x6060606060606060 & (0xffull << (56 * wantedPlayer - 56));
-			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
-			if (emptyArea == 0ull) {
-				// Check that no enemy pieces are attacking there
-				uint64_t areaWithoutAttacksMask = (relevantRowMask | (1ull << square));
-				generateAttacksV3(otherPlayer);
-
-				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
-				if (area == 0ull) {
-					if(pieceBoards[5] & occupiedBoard[wantedPlayer] & (1ull << ((56 * wantedPlayer - 56) + 7))) { // Check the rook still exists
-						moves[insertionIndex] = Move(square, square + 2, 6);
-						insertionIndex++;
-						movesGenerated++;
-					}
-				}
-			}
-		}*/
-
-		/*if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
-			// Occupancy check
-			uint64_t relevantRowMask = 0x0e0e0e0e0e0e0e0e & (0xffull << (56 * wantedPlayer - 56));
-			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
-			if (emptyArea == 0ull) {
-				// Check that no enemy pieces are attacking there
-				uint64_t areaWithoutAttacksMask = relevantRowMask & ~(1ull << (square - 3));
-				areaWithoutAttacksMask |= (1ull << square);
-				generateAttacksV3(otherPlayer);
-
-				uint64_t area = areaWithoutAttacksMask & attackingSquares[otherPlayer];
-				if (area == 0ull) {
-					if (pieceBoards[5] & occupiedBoard[wantedPlayer] & (1ull << (56 * wantedPlayer - 56))) { // Check the rook still exists
-						moves[insertionIndex] = Move(square, square - 2, 6);
-						insertionIndex++;
-						movesGenerated++;
-					}
-				}
-			}
-		}*/
-
 		return movesGenerated;
 	}
 
@@ -1178,7 +1121,7 @@ private:
 		if (validForwardPawnMoves != 0) {
 			if (square / 8 == 1 && wantedPlayer == 1) {
 				int targetSquare = square + 16;
-				if((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
+				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
 					moves[insertionIndex] = Move(square, targetSquare, 7);
 					insertionIndex++;
 					movesGenerated++;
@@ -1224,6 +1167,105 @@ private:
 		return movesGenerated;
 	}
 	
+	template<int wantedPlayer> void generatePawnMovesV3(Move moves[], int &insertionIndex) {
+		const uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
+		const uint64_t emptyBoard = ~(totalOccupiedBoard);
+
+		const uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
+
+		uint64_t pawnBoard = occupiedBoard[wantedPlayer] & pieceBoards[2];
+
+		// Single Pawn Push
+		uint64_t pawnPushes = (wantedPlayer == 1 ? pawnBoard << 8 : pawnBoard >> 8) & emptyBoard;
+
+		// Double Pawn Push
+		uint64_t doublePawnPushes = (wantedPlayer == 1 ? 0xff0000ul : 0xff0000000000ul) & pawnPushes;
+		doublePawnPushes = (wantedPlayer == 1 ? doublePawnPushes << 8 : doublePawnPushes >> 8) & emptyBoard;
+
+		// Pawn Promotions From push
+		uint64_t pawnPushPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & pawnPushes;
+		pawnPushes ^= pawnPushPromotions;	
+
+		while (pawnPushes != 0) {
+			int targetSquare = popLSB(pawnPushes);
+			int startSquare = targetSquare - directions[wantedPlayer - 1];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+		while (doublePawnPushes != 0) {
+			int targetSquare = popLSB(doublePawnPushes);
+			int startSquare = targetSquare - directions[wantedPlayer - 1] * 2;
+			moves[insertionIndex] = Move(startSquare, targetSquare, 7);
+			insertionIndex++;
+		}
+
+		while (pawnPushPromotions != 0) {
+			int targetSquare = popLSB(pawnPushPromotions);
+			int startSquare = targetSquare - directions[wantedPlayer - 1];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		// Captures
+		uint64_t leftCaptures = (wantedPlayer == 1 ? pawnBoard << 7 : pawnBoard >> 9) & otherOccupiedBoard;
+		leftCaptures = leftCaptures & 0x7f7f7f7f7f7f7f7ful;	// Left Captures that end up on rightmost column started on leftmost col
+
+		uint64_t lcPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & leftCaptures;
+		leftCaptures ^= lcPromotions;
+
+		uint64_t rightCaptures = (wantedPlayer == 1 ? pawnBoard << 9 : pawnBoard >> 7) & otherOccupiedBoard;
+		rightCaptures = rightCaptures & 0xfefefefefefefefeul;	// Right Captures that end up on leftmost column started on rightmost col
+
+		uint64_t rcPromotions = (wantedPlayer == 1 ? 0xff00000000000000ul : 0xfful) & rightCaptures;
+		rightCaptures ^= rcPromotions;
+
+		while (leftCaptures != 0) {
+			int targetSquare = popLSB(leftCaptures);
+			int startSquare = targetSquare + directions[3 * wantedPlayer + 1];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+		while (rightCaptures != 0) {
+			int targetSquare = popLSB(rightCaptures);
+			int startSquare = targetSquare + directions[7 - wantedPlayer];
+			moves[insertionIndex] = Move(startSquare, targetSquare, 0);
+			insertionIndex++;
+		}
+
+
+		while (lcPromotions != 0) {
+			int targetSquare = popLSB(lcPromotions);
+			int startSquare = targetSquare + directions[3 * wantedPlayer + 1];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		while (rcPromotions != 0) {
+			int targetSquare = popLSB(rcPromotions);
+			int startSquare = targetSquare + directions[7 - wantedPlayer];
+			for (int flag = 2; flag <= 5; flag++) {
+				moves[insertionIndex] = Move(startSquare, targetSquare, flag);
+				insertionIndex++;
+			}
+		}
+
+		// En Passant
+		if (boardStates[boardStateIndex].enPassantSquare != 64) {
+			uint64_t validEnPassantAttack = generatePawnAttacks<wantedPlayer % 2 + 1>(boardStates[boardStateIndex].enPassantSquare) & pieceBoards[2];
+			while (validEnPassantAttack != 0) {
+				int startSquare = popLSB(validEnPassantAttack);
+				moves[insertionIndex] = Move(startSquare, boardStates[boardStateIndex].enPassantSquare, 1);
+				insertionIndex++;
+			}
+		}
+	}
+
 	template <int safePlayer> uint64_t generateKnightMoves(int square) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
 
@@ -1246,10 +1288,12 @@ public:
 
 		insertionIndex += generateKingMovesV2<wantedPlayer>(popLSB(kingBoard), listOfMoves, insertionIndex);
 
-		while (pawnBoard != 0) {
+		generatePawnMovesV3<wantedPlayer>(listOfMoves, insertionIndex);
+
+		/*while (pawnBoard != 0) {
 			int square = popLSB(pawnBoard);
 			insertionIndex += generatePawnMovesV2<wantedPlayer>(square, listOfMoves, insertionIndex);
-		}
+		}*/
 
 		while (knightBoard != 0) {
 			int square = popLSB(knightBoard);
