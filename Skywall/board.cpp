@@ -358,11 +358,12 @@ public:
 	}
 
 	// Checking if we're in check 
-	bool sideInCheck(int player) {
+	template <int player>
+	bool sideInCheck() {
 		int otherPlayer = player % 2 + 1;
 
 		// perform several partial move gens beginning from other player's king location
-		uint64_t knightMoves = generateKnightMoves(kingLocations[player], player);
+		uint64_t knightMoves = generateKnightMoves<player>(kingLocations[player]);
 		if (knightMoves & occupiedBoard[otherPlayer] & pieceBoards[3]) {
 			return true;
 		}
@@ -382,7 +383,7 @@ public:
 
 		
 		// Pawn Attacks
-		if (generatePawnAttacks(kingLocations[player], player) & pieceBoards[2]) {
+		if (generatePawnAttacks<player>(kingLocations[player]) & pieceBoards[2]) {
 			return true;
 		}
 
@@ -682,9 +683,14 @@ public:
 	int generateLegalMovesV2(bool onlyCaptures, Move validMoves[]) {	// Using faster check detection
 		
 		Move allMoves[256];
-		int moveCount = generatePseudoLegalMovesV3(allMoves, currentPlayer);
-		int origCurrentPlayer = currentPlayer;
+		int moveCount;
 
+		if(currentPlayer == 1)
+			moveCount = generatePseudoLegalMovesV3<1>(allMoves);
+		else
+			moveCount = generatePseudoLegalMovesV3<2>(allMoves);
+
+		int origCurrentPlayer = currentPlayer;
 		int moveIndex = 0;
 
 		uint64_t initialBoards[2] = { occupiedBoard[1], occupiedBoard[2] };
@@ -702,7 +708,11 @@ public:
 
 
 			makeRawMove(move);
-			bool moveStatus = determineLegalBoardState();
+			bool moveStatus;
+			if(origCurrentPlayer == 1)
+				moveStatus = determineLegalBoardState<1>();
+			else
+				moveStatus = determineLegalBoardState<2>();
 			undoRawMove(move);
 
 			if (moveStatus) {
@@ -715,8 +725,9 @@ public:
 
 	}
 
+	template<int otherPlayer>
 	bool determineLegalBoardState() {
-		bool moveStatus = sideInCheck(currentPlayer % 2 + 1);
+		bool moveStatus = sideInCheck<otherPlayer>();
 		int kingDistance = max(abs(kingLocations[1] / 8 - kingLocations[2] / 8), abs(kingLocations[1] % 8 - kingLocations[2] % 8));
 
 		return !moveStatus && kingDistance > 1;
@@ -975,7 +986,7 @@ private:
 
 	}
 
-	int generateKingMovesV2(int square, Move moves[], int insertionIndex, int wantedPlayer) {
+	template<int wantedPlayer> int generateKingMovesV2(int square, Move moves[], int insertionIndex) {
 		int movesGenerated = 0;
 
 		uint64_t kingMoveBitboard = validKingMoves[square] & ~occupiedBoard[wantedPlayer];
@@ -986,10 +997,87 @@ private:
 			insertionIndex++;
 			movesGenerated++;
 		}
-
-		int otherPlayer = wantedPlayer % 2 + 1;
 		
-		if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
+		if constexpr (wantedPlayer == 1) {
+			if (boardStates[boardStateIndex].castlingRights[0]) {
+				constexpr uint64_t relevantRowMask = 0x60;
+				uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);
+
+				if (emptyArea == 0ull) {
+					constexpr uint64_t areaWithoutAttacksMask = 0x70;
+					generateAttacksV3(2);
+
+					uint64_t area = areaWithoutAttacksMask & attackingSquares[2];
+					if (area == 0ull) {
+						if (pieceBoards[5] & occupiedBoard[1] & 0x80ull) { // Check the rook still exists
+							moves[insertionIndex] = Move(4, 6, 6);
+							insertionIndex++;
+							movesGenerated++;
+						}
+					}
+				}
+			}
+			if (boardStates[boardStateIndex].castlingRights[1]) {
+				// Occupancy check
+				constexpr uint64_t relevantRowMask = 0xeull;
+				uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
+				if (emptyArea == 0ull) {
+					// Check that no enemy pieces are attacking there
+					constexpr uint64_t areaWithoutAttacksMask = 0x1c;
+					generateAttacksV3(2);
+
+					uint64_t area = areaWithoutAttacksMask & attackingSquares[2];
+					if (area == 0ull) {
+						if (pieceBoards[5] & occupiedBoard[1] & 1ull) { // Check the rook still exists
+							moves[insertionIndex] = Move(4, 2, 6);
+							insertionIndex++;
+							movesGenerated++;
+						}
+					}
+				}
+			}
+		}
+		else {
+			if (boardStates[boardStateIndex].castlingRights[2]) {
+				constexpr uint64_t relevantRowMask = 0x6000000000000000ull;
+				uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);
+
+				if (emptyArea == 0ull) {
+					constexpr uint64_t areaWithoutAttacksMask = 0x7000000000000000ull;
+					generateAttacksV3(1);
+
+					uint64_t area = areaWithoutAttacksMask & attackingSquares[1];
+					if (area == 0ull) {
+						if (pieceBoards[5] & occupiedBoard[2] & 0x8000000000000000ull) { // Check the rook still exists
+							moves[insertionIndex] = Move(60, 62, 6);
+							insertionIndex++;
+							movesGenerated++;
+						}
+					}
+				}
+			}
+			if (boardStates[boardStateIndex].castlingRights[3]) {
+				// Occupancy check
+				constexpr uint64_t relevantRowMask = 0xe00000000000000ull;
+				uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
+				if (emptyArea == 0ull) {
+					// Check that no enemy pieces are attacking there
+					constexpr uint64_t areaWithoutAttacksMask = 0x1c00000000000000ull;
+					generateAttacksV3(1);
+
+					uint64_t area = areaWithoutAttacksMask & attackingSquares[1];
+					if (area == 0ull) {
+						if (pieceBoards[5] & occupiedBoard[2] & 0x100000000000000ull) { // Check the rook still exists
+							moves[insertionIndex] = Move(60, 58, 6);
+							insertionIndex++;
+							movesGenerated++;
+						}
+					}
+				}
+			}
+		}
+
+		/*if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 2]) {	// King side castling right exists
 			// Occupancy check
 			uint64_t relevantRowMask = 0x6060606060606060 & (0xffull << (56 * wantedPlayer - 56));
 			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
@@ -1007,8 +1095,9 @@ private:
 					}
 				}
 			}
-		}
-		if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
+		}*/
+
+		/*if (boardStates[boardStateIndex].castlingRights[wantedPlayer * 2 - 1]) {	// Queen side castling right exists
 			// Occupancy check
 			uint64_t relevantRowMask = 0x0e0e0e0e0e0e0e0e & (0xffull << (56 * wantedPlayer - 56));
 			uint64_t emptyArea = relevantRowMask & (occupiedBoard[1] | occupiedBoard[2]);	//
@@ -1027,12 +1116,12 @@ private:
 					}
 				}
 			}
-		}
+		}*/
 
 		return movesGenerated;
 	}
 
-	uint64_t generatePawnAttacks(int square, int wantedPlayer) {
+	template<int wantedPlayer> uint64_t generatePawnAttacks(int square) {
 		uint64_t otherOccupiedBoard = occupiedBoard[wantedPlayer % 2 + 1];
 
 		uint64_t currentPawnMask = validPawnCaptureMasks[square][wantedPlayer];
@@ -1040,7 +1129,7 @@ private:
 		return currentPawnMask & otherOccupiedBoard;
 	}
 
-	int generatePawnMovesV2(int square, Move moves[], int insertionIndex, int wantedPlayer) {
+	template<int wantedPlayer> int generatePawnMovesV2(int square, Move moves[], int insertionIndex) {
 		int movesGenerated = 0;
 		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 
@@ -1076,7 +1165,7 @@ private:
 			}
 		}
 
-		uint64_t validPawnMoves = generatePawnAttacks(square, wantedPlayer) | validForwardPawnMoves;
+		uint64_t validPawnMoves = generatePawnAttacks<wantedPlayer>(square) | validForwardPawnMoves;
 
 		while (validPawnMoves != 0) {
 			int targetSquare = popLSB(validPawnMoves);
@@ -1097,7 +1186,7 @@ private:
 		return movesGenerated;
 	}
 	
-	uint64_t generateKnightMoves(int square, int safePlayer) {
+	template <int safePlayer> uint64_t generateKnightMoves(int square) {
 		uint64_t legalMoveBoard = validKnightMoves[square];
 
 		return legalMoveBoard & ~occupiedBoard[safePlayer];
@@ -1105,7 +1194,8 @@ private:
 
 
 public:
-	int generatePseudoLegalMovesV3(Move listOfMoves[], int wantedPlayer) {
+	template <int wantedPlayer>
+	int generatePseudoLegalMovesV3(Move listOfMoves[]) {
 		int insertionIndex = 0;
 		uint64_t relevantOccupiedBoard = occupiedBoard[wantedPlayer];
 
@@ -1116,16 +1206,16 @@ public:
 		uint64_t rookBoard = relevantOccupiedBoard & pieceBoards[5];
 		uint64_t queenBoard = relevantOccupiedBoard & pieceBoards[6];
 
-		insertionIndex += generateKingMovesV2(popLSB(kingBoard), listOfMoves, insertionIndex, wantedPlayer);
+		insertionIndex += generateKingMovesV2<wantedPlayer>(popLSB(kingBoard), listOfMoves, insertionIndex);
 
 		while (pawnBoard != 0) {
 			int square = popLSB(pawnBoard);
-			insertionIndex += generatePawnMovesV2(square, listOfMoves, insertionIndex, wantedPlayer);
+			insertionIndex += generatePawnMovesV2<wantedPlayer>(square, listOfMoves, insertionIndex);
 		}
 
 		while (knightBoard != 0) {
 			int square = popLSB(knightBoard);
-			uint64_t knightMoves = generateKnightMoves(square, wantedPlayer);
+			uint64_t knightMoves = generateKnightMoves<wantedPlayer>(square);
 
 			while (knightMoves != 0) {
 				int targetSquare = popLSB(knightMoves);

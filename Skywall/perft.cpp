@@ -16,14 +16,19 @@ int testDepth;
 uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
 	uint64_t nodes = 0;
 
-	if (depth == 0) {
+	/*if (depth == 0) {
 		testBoard.nodes++;
 		return 1;
-	}
+	}*/
 
 	Move allMoves[256];
 
 	int moveCount = testBoard.generateLegalMovesV2(testingCaptures, allMoves);
+
+	if (depth == 1) {
+		testBoard.nodes += moveCount;
+		return moveCount;
+	}
 
 	for (uint8_t i = 0; i < moveCount; i++) {
 		Move move = allMoves[i];
@@ -85,7 +90,7 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 3;
+	testDepth = 5;
 	testBoard.loadBoardFromFen(FENs[1]);
 
 	//testBoard.printBoard();
@@ -154,7 +159,7 @@ void movegenBenchmark() {
 	auto stop = chrono::high_resolution_clock::now();
 	auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-	for (int line = 0; line < 128; line++) {
+	/*for (int line = 0; line < 128; line++) {
 		//cout << line << "\n";
 		testBoard.loadBoardFromFen(FENs[line]);
 		start = chrono::high_resolution_clock::now();
@@ -169,16 +174,19 @@ void movegenBenchmark() {
 	
 	cout << "Attack Gen Time: " << duration.count() << " microseconds\n";
 	double moveGenSpeed = (268435456.0) / (duration.count());
-	printf("Attack Gen speed: %f gen per microsecond\n\n\n", moveGenSpeed);
+	printf("Attack Gen speed: %f gen per microsecond\n\n\n", moveGenSpeed);*/
 
-	/*start = chrono::high_resolution_clock::now();
+	start = chrono::high_resolution_clock::now();
 	double moveCount = 0;
 	for (int line = 0; line < 128; line++) {
 		testBoard.loadBoardFromFen(FENs[line]);
 
-		vector<Move> allMoves = testBoard.generateLegalMovesV2(false);
-		for (int repCount = 0; repCount < 32678; repCount++) {
-			for (Move move : allMoves) {
+		Move allMoves[256];
+
+		int legalMC = testBoard.generateLegalMovesV2(false, allMoves);
+		for (int repCount = 0; repCount < 326780; repCount++) {
+			for (int i = 0; i < legalMC; i++) {
+				Move move = allMoves[i];
 				testBoard.makeRawMove(move);
 				moveCount++;
 				testBoard.undoRawMove(move);
@@ -190,5 +198,5 @@ void movegenBenchmark() {
 
 	cout << "MakeMove Time: " << duration.count() << " microseconds\n";
 	double makeMoveTime = moveCount / (duration.count());
-	printf("MakeMove speed: %f mps", makeMoveTime);*/
+	printf("MakeMove speed: %f mps", makeMoveTime);
 }
