@@ -11,11 +11,11 @@ using namespace std;
  */
 class Move {
 public:
-	int getStartSquare() {
+	constexpr int getStartSquare() {
 		return (rawValue >> 6) & 0b111111;
 	}
 
-	int getEndSquare() {
+	constexpr int getEndSquare() {
 		return rawValue & 0b111111;
 	}
 
@@ -26,7 +26,7 @@ public:
 	// 5 for promote to queen
 	// 6 for castling
 	// 7 for pawn push up 2x
-	int getFlag() {
+	constexpr int getFlag() {
 		return rawValue >> 12;
 	}
 

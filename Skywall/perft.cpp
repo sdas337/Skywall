@@ -13,27 +13,28 @@ Board testBoard;
 
 int testDepth;
 
-uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
+template <bool testingCaptures>
+uint64_t moveChecker(int depth, int DEBUG) {
 	uint64_t nodes = 0;
 
-	/*if (depth == 0) {
+	if (depth == 0) {
 		testBoard.nodes++;
 		return 1;
-	}*/
+	}
 
 	Move allMoves[256];
 
 	int moveCount;
 	
 	if(testBoard.currentPlayer == 1)
-		moveCount = testBoard.generateLegalMovesV2<1>(testingCaptures, allMoves);
+		moveCount = testBoard.generateLegalMovesV2<1, testingCaptures>(allMoves);
 	else
-		moveCount = testBoard.generateLegalMovesV2<2>(testingCaptures, allMoves);
+		moveCount = testBoard.generateLegalMovesV2<2, testingCaptures>(allMoves);
 
-	if (depth == 1) {
+	/*if (depth == 1) {
 		testBoard.nodes += moveCount;
 		return moveCount;
-	}
+	}*/
 
 	for (uint8_t i = 0; i < moveCount; i++) {
 		Move move = allMoves[i];
@@ -45,7 +46,7 @@ uint64_t moveChecker(int depth, bool testingCaptures, int DEBUG) {
 		else
 			testBoard.makeRawMove<2>(move);
 
-		uint64_t movesMade = moveChecker(depth - 1, testingCaptures, DEBUG);
+		uint64_t movesMade = moveChecker<testingCaptures>(depth - 1, DEBUG);
 		nodes += movesMade;
 
 		testBoard.undoRawMove(move);
@@ -108,7 +109,7 @@ void perftTest() {
 	//testBoard.loadBoardFromFen("rnbqkbnr/1ppppppp/8/8/Pp6/8/2PPPPPP/RNBQKBNR w KQkq - 0 3");
 
 	// breaks here
-	uint64_t result = moveChecker(testDepth, false, 1);
+	uint64_t result = moveChecker<false>(testDepth, 1);
 
 
 	printf("%llu legal moves\n", result);
@@ -141,7 +142,7 @@ void completePerftTest() {
 
 			testDepth = depth;
 
-			uint64_t result = moveChecker(testDepth, false, 0);
+			uint64_t result = moveChecker<false>(testDepth, 0);
 
 			if (moveCount == result) {
 				printf("Position %d at depth %d passed.\n", line, depth);

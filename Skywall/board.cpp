@@ -80,7 +80,7 @@ public:
 	bool isCapture(Move move) {
 		int pieceRemovalSquare = move.getEndSquare();
 		int flags = move.getFlag();
-		if (flags == 1 || flags == 7) {
+		if (flags == 1) {
 			if constexpr (playerToMove == 1) {
 				pieceRemovalSquare -= 8;
 			}
@@ -724,8 +724,8 @@ public:
 		//printf("Finished setting up board.\n");
 	}
 
-	template <int focusPlayer>
-	int generateLegalMovesV2(bool onlyCaptures, Move validMoves[]) {	// Using faster check detection
+	template <int focusPlayer, bool onlyCaptures>
+	int generateLegalMovesV2(Move validMoves[]) {	// Using faster check detection
 		
 		Move allMoves[256];
 		int moveCount;
@@ -739,8 +739,10 @@ public:
 		for (uint8_t i = 0; i < moveCount; i++) {
 			Move move = allMoves[i];
 
-			if (onlyCaptures && !isCapture<focusPlayer>(move)) {
-				continue;
+			if constexpr(onlyCaptures) {
+				if (!isCapture<focusPlayer>(move)) {
+					continue;
+				}
 			}
 
 			/*if (occupiedBoard[1] != initialBoards[0] || occupiedBoard[2] != initialBoards[1]) {
@@ -1110,63 +1112,6 @@ private:
 		return currentPawnMask & otherOccupiedBoard;
 	}
 
-	template<int wantedPlayer> int generatePawnMovesV2(int square, Move moves[], int insertionIndex) {
-		int movesGenerated = 0;
-		uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
-
-		uint64_t currentPawnMask = validPawnMoveMasks[square][wantedPlayer];
-		
-		uint64_t validForwardPawnMoves = (currentPawnMask) & ~(totalOccupiedBoard);
-
-		if (validForwardPawnMoves != 0) {
-			if (square / 8 == 1 && wantedPlayer == 1) {
-				int targetSquare = square + 16;
-				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
-					moves[insertionIndex] = Move(square, targetSquare, 7);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-			else if (square / 8 == 6 && wantedPlayer == 2) {
-				int targetSquare = square - 16;
-				if ((totalOccupiedBoard & (1ull << targetSquare)) == 0) {
-					moves[insertionIndex] = Move(square, targetSquare, 7);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-		}
-
-		if (boardStates[boardStateIndex].enPassantSquare >= 0 && boardStates[boardStateIndex].enPassantSquare < 64) {	// En passant Move
-			uint64_t enPassant = validPawnCaptureMasks[square][wantedPlayer] & (1ull << boardStates[boardStateIndex].enPassantSquare);
-			if (enPassant != 0ull) {
-				moves[insertionIndex] = Move(square, boardStates[boardStateIndex].enPassantSquare, 1);
-				insertionIndex++;
-				movesGenerated++;
-			}
-		}
-
-		uint64_t validPawnMoves = generatePawnAttacks<wantedPlayer>(square) | validForwardPawnMoves;
-
-		while (validPawnMoves != 0) {
-			int targetSquare = popLSB(validPawnMoves);
-
-			if (targetSquare / 8 == 0 || targetSquare / 8 == 7) {
-				for (int flag = 2; flag <= 5; flag++) {
-					moves[insertionIndex] = Move(square, targetSquare, flag);
-					insertionIndex++;
-					movesGenerated++;
-				}
-			}
-			else {
-				moves[insertionIndex] = Move(square, targetSquare, 0);
-				insertionIndex++;
-				movesGenerated++;
-			}
-		}
-		return movesGenerated;
-	}
-	
 	template<int wantedPlayer> void generatePawnMovesV3(Move moves[], int &insertionIndex) {
 		const uint64_t totalOccupiedBoard = occupiedBoard[1] | occupiedBoard[2];
 		const uint64_t emptyBoard = ~(totalOccupiedBoard);
@@ -1289,11 +1234,6 @@ public:
 		insertionIndex += generateKingMovesV2<wantedPlayer>(popLSB(kingBoard), listOfMoves, insertionIndex);
 
 		generatePawnMovesV3<wantedPlayer>(listOfMoves, insertionIndex);
-
-		/*while (pawnBoard != 0) {
-			int square = popLSB(pawnBoard);
-			insertionIndex += generatePawnMovesV2<wantedPlayer>(square, listOfMoves, insertionIndex);
-		}*/
 
 		while (knightBoard != 0) {
 			int square = popLSB(knightBoard);
