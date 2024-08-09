@@ -20,7 +20,7 @@ TuneValue lmpBase("lmpBase", 2, 0, 10, 2);
 
 TuneValue hstPruneDepth("hstPruneDepth", 6, 0, 12, 1);
 TuneValue hstPruneScale("hstPruneScale", 2300, 0, 4000, 100);
-TuneValue hstPruneBase("hstPruneBase", 1000, -2000, 0, 100);
+TuneValue hstPruneBase("hstPruneBase", 1000, 0, 2000, 100);
 
 TuneValue hstReduction("hstReduction", 8192, 0, 16683, 500);
 

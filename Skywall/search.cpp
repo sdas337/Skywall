@@ -303,7 +303,13 @@ public:
 	}
 
 	int negamax(int depth, int plyFromRoot, int alpha, int beta, bool nullMovePruningAllowed, Move priorMove) {
-		bool inCheck = board.sideInCheck(board.currentPlayer);
+		bool inCheck;
+
+		if(board.currentPlayer == 1)
+			inCheck = board.sideInCheck<1>();
+		else
+			inCheck = board.sideInCheck<2>();
+
 		bool qsearchStatus = depth <= 0;
 
 		searchStack[plyFromRoot].inCheck = inCheck;
@@ -482,7 +488,11 @@ public:
 			board.makeMove(move);
 
 			board.nodes++;
-			bool tmpCheckStatus = board.sideInCheck(board.currentPlayer);
+			bool tmpCheckStatus;
+			if (board.currentPlayer == 1)
+				tmpCheckStatus = board.sideInCheck<1>();
+			else
+				tmpCheckStatus = board.sideInCheck<2>();
 			int extensions = 0, reductions = 0;
 
 			// Check Extensions
@@ -638,13 +648,13 @@ public:
 			else if (score >= beta)
 				beta += aspDelta.value;
 			else {
-				cout << duration << " ms\t\t";
+				/*cout << duration << " ms\t\t";
 				cout << chosenDepth << "\t\t";
 				cout << moveToPlay.printMove() << " \t\t";
 				cout << score << "\t\t";
 				cout << board.lookups << "\t\t";
 				cout << board.ttEntries << "\t\t";
-				cout << board.nodes << "\n";
+				cout << board.nodes << "\n";*/
 
 				chosenDepth++;
 				alpha = score - aspWindow.value;

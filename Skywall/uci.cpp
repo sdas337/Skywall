@@ -15,8 +15,8 @@ void testing() {
 	importPerftTest();
 	printf("Beginning mass perft test.\n");
 	auto start = chrono::high_resolution_clock::now();
-	completePerftTest();
-	//perftTest();
+	//completePerftTest();
+	perftTest();
 	auto stop = chrono::high_resolution_clock::now();
 
 	auto duration = chrono::duration_cast<chrono::nanoseconds>(stop - start);
@@ -322,7 +322,6 @@ void uciHandling(Search &currentSearch) {
 	}
 }
 
-
 int main()
 {
 	Search currentSearch;
@@ -332,10 +331,10 @@ int main()
 	//evalTuningTest();
 	//seeTest();
 
-	//testing();
+	testing();
 	//outputTunableJSON();
 
-	uciHandling(currentSearch);
+	//uciHandling(currentSearch);
 
 	//bench(10);
 
