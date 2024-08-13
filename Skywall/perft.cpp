@@ -27,9 +27,9 @@ uint64_t moveChecker(int depth, int DEBUG) {
 	int moveCount;
 	
 	if(testBoard.currentPlayer == 1)
-		moveCount = testBoard.generateLegalMovesV2<1, testingCaptures>(allMoves);
+		moveCount = testBoard.generateLegalMovesV3<1, testingCaptures>(allMoves);
 	else
-		moveCount = testBoard.generateLegalMovesV2<2, testingCaptures>(allMoves);
+		moveCount = testBoard.generateLegalMovesV3<2, testingCaptures>(allMoves);
 
 	/*if (depth == 1) {
 		testBoard.nodes += moveCount;
@@ -99,8 +99,8 @@ void importPerftTest() {
 void perftTest() {
 	string customPos = "r1b4r/ppq1nppp/4p3/2k1P3/3QB3/P4N2/2P2PPP/R1B1R1K1 b - - 1 16";
 	
-	testDepth = 5;
-	testBoard.loadBoardFromFen(FENs[1]);
+	testDepth = 1;
+	testBoard.loadBoardFromFen(FENs[0]);
 
 	//testBoard.printBoard();
 	//testBoard.loadBoardFromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R2K3R b kq - 1 1");
