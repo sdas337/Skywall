@@ -498,7 +498,9 @@ public:
 				reductions -= pvNode;
 
 				reductions -= historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()] / hstReduction.value;
-
+				
+				//reductions -= !(moveScores[i] < 90000);	// Reducing less for good captures, killers, countermoves
+				reductions += (moveScores[i] < 90000);	// Reducing more for moves that aren't killers, captures, or countermoves.
 				//reductions = clamp(reductions, 0, depth - 2);
 			}
 
