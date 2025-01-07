@@ -42,6 +42,8 @@ public:
 	int historyTable[2][64][64];
 	int qhistoryTable[2][64][64][5];
 
+	int capHistoryTable[2][64][64][5];
+
 	Board board;
 
 	Move counterMoves[64][64];
@@ -203,7 +205,7 @@ public:
 				score = 8000000;
 			}
 			else {	// MVV-LVA
-				int victim = board.rawBoard[allMoves[i].getEndSquare()] % 8;
+				int victim = board.capturedPiece(allMoves[i]) % 8;
 				score += 500000 * (victim)-20000 * (board.rawBoard[allMoves[i].getStartSquare()] % 8);
 				score += qhistoryTable[historyIndex][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()][victim - 2];
 			}
@@ -393,30 +395,33 @@ public:
 		for (int i = 0; i < moveCount; i++) {
 			int score = 0;
 
-			if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
-				score = 8000000;
-			}
-			else if (board.isCapture(allMoves[i])) {	// MVV + SEE
-				score += mvvValues[(board.rawBoard[allMoves[i].getEndSquare()] % 8)]->value;	// MVV
+		if (currentEntry.zobristHash == currentHash && allMoves[i] == currentEntry.m) {	// TT Table
+			score = 8000000;
+		}
+		else if (board.isCapture(allMoves[i])) {	// MVV + SEE
+			int victim = board.capturedPiece(allMoves[i]) % 8 - 2;
+			score += 65536 * victim;	// MVV
 
-				if (see(allMoves[i], 0)) {	// good captures
-					score += 500000;
-				}
-				else {
-					score += 50000;
-				}
+			if (see(allMoves[i], 0)) {	// good captures
+				score += 1000000;
 			}
 			else {
-				if (killerMoves[plyFromRoot][0] == allMoves[i] || killerMoves[plyFromRoot][1] == allMoves[i]) {	// Killer Moves
-					score = 100000;
-				}
-				else if (allMoves[i] == counterMoves[priorMove.getStartSquare()][priorMove.getEndSquare()]) {	// Counter moves
-					score = 99000;
-				}
-				else {	// History
-					score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
-				}
+				score += 50000;
 			}
+			score += capHistoryTable[historyIndex][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()][victim];
+
+		}
+		else {
+			if (killerMoves[plyFromRoot][0] == allMoves[i] || killerMoves[plyFromRoot][1] == allMoves[i]) {	// Killer Moves
+				score = 500000;
+			}
+			else if (allMoves[i] == counterMoves[priorMove.getStartSquare()][priorMove.getEndSquare()]) {	// Counter moves
+				score = 490000;
+			}
+			else {	// History
+				score = historyTable[board.currentPlayer - 1][allMoves[i].getStartSquare()][allMoves[i].getEndSquare()];
+			}
+		}
 
 			moveScores[i] = score;
 		}
@@ -546,16 +551,31 @@ public:
 						int bonus = min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
 						bonus = bonus - value * abs(bonus) / 16384;
 						value += bonus;
+					}
+					else {
+						int victim = board.capturedPiece(allMoves[i]) % 8 - 2;
+						int& value = capHistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][victim];
 
-						for (int z = 0; z < i; z++) {
-							move = allMoves[z];
-							if (!board.isCapture(move)) {
-								int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
+						int bonus = min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
+						bonus = bonus - value * abs(bonus) / 16384;
+						value += bonus;
+					}
+					for (int z = 0; z < i; z++) {
+						move = allMoves[z];
+						if (!board.isCapture(move)) {
+							int& value = historyTable[historyIndex][move.getStartSquare()][move.getEndSquare()];
 
-								int malus = -min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
-								malus = malus - value * abs(malus) / 16384;
-								value += malus;
-							}
+							int malus = -min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
+							malus = malus - value * abs(malus) / 16384;
+							value += malus;
+						}
+						else {
+							int victim = board.capturedPiece(allMoves[i]) % 8 - 2;
+							int& value = capHistoryTable[historyIndex][move.getStartSquare()][move.getEndSquare()][victim];
+
+							int malus = -min(hstMin.value, hstQuad.value * depth * depth + hstLin.value * depth + hstConst.value);
+							malus = malus - value * abs(malus) / 16384;
+							value += malus;
 						}
 					}
 					break;

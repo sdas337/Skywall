@@ -86,6 +86,16 @@ public:
 		return rawBoard[pieceRemovalSquare] != 0;
 	}
 
+	int capturedPiece(Move move) {
+		int pieceRemovalSquare = move.getEndSquare();
+		int flags = move.getFlag();
+		if (flags == 1 || flags == 7) {
+			pieceRemovalSquare += (currentPlayer == 1 ? -8 : 8);
+		}
+
+		return rawBoard[pieceRemovalSquare];
+	}
+
 	void makeRawMove(Move move) {
 		BoardStateInformation newInfo = boardStates[boardStateIndex];
 
