@@ -142,7 +142,7 @@ void positionHandling(Search& currentSearch, vector<string> &instruction) {
 	}
 	else {
 		string fenString;
-		for (size_t i = 1; i < instruction.size(); i++)
+		for (size_t i = 2; i < instruction.size(); i++)
 			fenString += instruction[i] + " ";
 		currentSearch.board.loadBoardFromFen(fenString);
 	}
@@ -219,8 +219,8 @@ void instructionHandling(Search &currentSearch, string instruction) {
 	vector<string> splitString = split(instruction, ' ');
 
 	if (instruction == "uci") {
-		cout << "id: name Skywall V0.0\n";
-		cout << "id: author Waterwall\n";
+		cout << "id name Skywall V0.0\n";
+		cout << "id author Waterwall\n";
 		cout << "option name Hash type spin default 16 min 1 max 64\n";
 		cout << "option name Threads type spin default 1 min 1 max 1\n";
 		//cout << "option name SyzygyPath type string default <empty>\n";
@@ -234,7 +234,12 @@ void instructionHandling(Search &currentSearch, string instruction) {
 		currentSearch.resetSearch();
 	}
 	else if (splitString[0] == "position") {
-		positionHandling(currentSearch, splitString);
+		if (splitString[1] == "fen") {
+			positionHandling(currentSearch, splitString);
+		}
+		else {
+			positionHandling(currentSearch, splitString);
+		}
 	}
 	else if (splitString[0] == "go") {
 		int wtime = 0, btime = 0;

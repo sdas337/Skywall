@@ -522,6 +522,8 @@ public:
 		while (fenIndex < current.length()) {
 			char currentItem = current[fenIndex];
 
+			//printf("%c", currentItem);
+
 			if (currentItem > 65) {	// ASCII value of A aka piece letters
 				switch (currentItem)
 				{

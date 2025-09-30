@@ -638,9 +638,9 @@ public:
 		int softTimeBound = (int)(((double)tcMul.value / 100) * (time * timeMul.value / 100 + inc * incMul.value / 100));
 		//softTimeBound = time / 30;
 
-		if (maxDepth > 1) {
-			cout << "Time\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
-		}
+		/*if (maxDepth > 1) {
+			cout << "info \t\tTime\t\tDepth\t\tBest Move\tScore\t\tLookups\t\tTT Entries\tNodes\n";
+		}*/
 
 		start = chrono::high_resolution_clock::now();
 
@@ -658,14 +658,17 @@ public:
 			else if (score >= beta)
 				beta += aspDelta.value;
 			else {
-				cout << duration << " ms\t\t";
-				cout << chosenDepth << "\t\t";
-				cout << moveToPlay.printMove() << " \t\t";
-				cout << score << "\t\t";
-				cout << board.lookups << "\t\t";
-				cout << board.ttEntries << "\t\t";
-				cout << board.nodes << "\n";
 
+				cout << "info ";
+				cout << "depth " << chosenDepth;
+				cout << " time " << duration;
+				//cout << moveToPlay.printMove() << " \t\t";
+				cout << " score cp " << score;
+				//cout << board.lookups << "\t\t";
+				//cout << board.ttEntries << "\t\t";
+				//cout << board.nodes << "\n";
+
+				cout << "\n";
 				chosenDepth++;
 				alpha = score - aspWindow.value;
 				beta = score + aspWindow.value;
